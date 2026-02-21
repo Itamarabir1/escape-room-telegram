@@ -1,7 +1,7 @@
 import logging
 from telegram.ext import ApplicationBuilder
-from backend.config import config
-from backend.game_manager import GameManager
+from config import config
+from game_manager import GameManager
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
