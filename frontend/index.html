@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>חדר בריחה AI</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #game-container {
+            text-align: center;
+            padding: 20px;
+            border: 2px solid var(--tg-theme-button-color, #2481cc);
+            border-radius: 15px;
+        }
+        button {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>הכנה לחדר בריחה</h1>
+        <p id="user-greeting">טוען נתונים...</p>
+        <button onclick="sendAction()">שלח פעולה לבוט</button>
+    </div>
+
+    <script>
+        // אתחול האפליקציה
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // פריסה למסך מלא
+
+        // הצגת שם המשתמש מתוך נתוני טלגרם
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            document.getElementById('user-greeting').innerText = `שלום ${user.first_name}, האם אתה מוכן לברוח?`;
+        }
+
+        function sendAction() {
+            // שליחת מידע בחזרה לבוט (סוגר את ה-Web App ושולח הודעה)
+            tg.sendData("המשתמש ניסה לפתוח את הדלת!");
+        }
+    </script>
+</body>
+</html>
