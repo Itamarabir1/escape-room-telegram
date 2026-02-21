@@ -16,3 +16,6 @@ class Config:
         raise ValueError(
             "❌ TELEGRAM_TOKEN חסר. הגדר בקובץ backend/.env או במשתני הסביבה (ב-Render: Environment)."
         )
+
+
+config = Config()
