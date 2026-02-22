@@ -43,6 +43,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     chat_data = context.chat_data
+    logging.info("handle_callback: data=%s chat_id=%s", query.data, update.effective_chat.id if update.effective_chat else None)
 
     if query.data == "join_game":
         if is_game_active(chat_data):
@@ -78,6 +79,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif query.data == "start_ai_story":
+        logging.info("start_ai_story callback: chat_id=%s, game_active=%s", update.effective_chat.id if update.effective_chat else None, is_game_active(chat_data))
         if is_game_active(chat_data):
             # שולח כפתור "שחק עכשיו" בהודעה חדשה – כך ברור איפה ללחוץ (גם אם עריכת ההודעה הקודמת נכשלה)
             game_id = chat_data.get("game_id")
@@ -101,20 +103,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             game_id = finish_registration(chat_id, chat_data)
             web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/")
             if not web_app_url:
-                logging.warning("WEBAPP_URL not set; Web App button may not work. Set it in .env or Render Environment.")
+                logging.warning("WEBAPP_URL not set; using default.")
                 web_app_url = "https://escape-room-telegram.onrender.com"
             game_url = f"{web_app_url}/game?game_id={game_id}"
             keyboard = [
                 [InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))],
             ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
             await query.answer()
-            await query.edit_message_text(
-                "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-            )
+            try:
+                await query.edit_message_text(
+                    "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
+                    reply_markup=reply_markup,
+                )
+            except Exception as edit_err:
+                logging.warning("edit_message_text failed: %s; sending new message instead.", edit_err)
+                await query.message.reply_text(
+                    "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
+                    reply_markup=reply_markup,
+                )
         except Exception as e:
             logging.exception("Error in start_ai_story callback: %s", e)
-            await query.answer("אירעה שגיאה. נסה שוב או שלח /end_game ואז /start_game.", show_alert=True)
+            try:
+                await query.answer("אירעה שגיאה. נסה שוב או /end_game ואז /start_game.", show_alert=True)
+            except Exception:
+                pass
+            await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
 
     elif query.data == "ignore_welcome":
         await query.answer()
