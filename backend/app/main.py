@@ -4,12 +4,14 @@ import os
 from pathlib import Path
 
 import uvicorn
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 from config import config
+
+logger = logging.getLogger(__name__)
 
 # נתיב לקובץ ה-HTML של המשחק (יחסית למיקום הקובץ הזה)
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -47,6 +49,18 @@ async def health():
     return {"status": "ok"}
 
 
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    """מקבל עדכונים מטלגרם (Webhook) – ב-Production טלגרם שולחת לכאן במקום Polling."""
+    try:
+        data = await request.json()
+        update = Update.de_json(data=data, bot=app.state.tg_app.bot)
+        await app.state.tg_app.update_queue.put(update)
+    except Exception as e:
+        logger.exception("Webhook error: %s", e)
+    return {"ok": True}
+
+
 # --- Game API for Web App (shared game state by game_id) ---
 @app.get("/api/games/{game_id}")
 async def get_game_state(game_id: str):
@@ -81,7 +95,18 @@ async def startup_event():
     register_game_handlers(tg_app)
     await tg_app.initialize()
     await tg_app.start()
-    await tg_app.updater.start_polling()
+    app.state.tg_app = tg_app
+
+    base_url = (config.WEBAPP_URL or "").strip().rstrip("/")
+    if base_url:
+        # Production: טלגרם תשלח עדכונים ל-Webhook. אסור להריץ Polling (getUpdates) Webhook פעיל.
+        webhook_url = f"{base_url}/webhook"
+        await tg_app.bot.set_webhook(url=webhook_url)
+        logger.info("Webhook set: %s", webhook_url)
+    else:
+        # פיתוח לוקאלי: Polling (getUpdates)
+        await tg_app.updater.start_polling()
+        logger.info("Polling started (no WEBAPP_URL)")
 
 
 if __name__ == "__main__":
