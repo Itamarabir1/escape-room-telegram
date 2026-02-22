@@ -10,7 +10,6 @@ from services.game_session import (
     add_player,
     is_game_active,
     get_players_list_text,
-    can_start_game,
     finish_registration,
     end_game_chat,
 )
@@ -47,7 +46,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "join_game":
         if is_game_active(chat_data):
-            await query.answer("מצטערים, ההרשמה נסגרה! המשחק כבר התחיל. 🏃‍♂️", show_alert=True)
+            await query.answer(
+                "מצטערים, ההרשמה נסגרה. תוכל ללחוץ על 'שחק עכשיו' באותה הודעה כדי להיכנס למשחק.",
+                show_alert=True,
+            )
             return
         if not add_player(chat_data, user.id, user.first_name or "שחקן"):
             await query.answer("אתה כבר רשום למשחק! 😉", show_alert=True)
@@ -65,8 +67,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif query.data == "start_ai_story":
-        if not can_start_game(chat_data):
-            await query.answer("אי אפשר לצאת להרפתקה לבד! חכה שמישהו יצטרף. 😊", show_alert=True)
+        if is_game_active(chat_data):
+            await query.answer(
+                "המשחק כבר התחיל. לחץ על 'שחק עכשיו' באותה הודעה כדי להיכנס.",
+                show_alert=True,
+            )
             return
         try:
             chat_id = update.effective_chat.id if update.effective_chat else 0

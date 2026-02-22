@@ -40,7 +40,8 @@ def get_players_list_text(chat_data: dict[str, Any]) -> str:
 
 
 def can_start_game(chat_data: dict[str, Any]) -> bool:
-    return bool(get_players(chat_data)) and not is_game_active(chat_data)
+    """True if registration is open (game not started yet). Allows solo play (0 players)."""
+    return not is_game_active(chat_data)
 
 
 def finish_registration(chat_id: int, chat_data: dict[str, Any]) -> str:
