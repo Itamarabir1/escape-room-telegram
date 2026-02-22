@@ -49,7 +49,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             game_id = chat_data.get("game_id")
             if game_id:
                 await query.answer()
-                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://your-service-name.onrender.com"
+                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://escape-room-telegram.onrender.com"
                 game_url = f"{web_app_url}/game?game_id={game_id}"
                 keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
                 await query.message.reply_text(
@@ -83,7 +83,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             game_id = chat_data.get("game_id")
             if game_id:
                 await query.answer()
-                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://your-service-name.onrender.com"
+                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://escape-room-telegram.onrender.com"
                 game_url = f"{web_app_url}/game?game_id={game_id}"
                 keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
                 await query.message.reply_text(
@@ -102,7 +102,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/")
             if not web_app_url:
                 logging.warning("WEBAPP_URL not set; Web App button may not work. Set it in .env or Render Environment.")
-                web_app_url = "https://your-service-name.onrender.com"
+                web_app_url = "https://escape-room-telegram.onrender.com"
             game_url = f"{web_app_url}/game?game_id={game_id}"
             keyboard = [
                 [InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))],

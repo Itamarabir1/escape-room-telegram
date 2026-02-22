@@ -20,7 +20,7 @@ app = FastAPI(title="Telegram Bot - חדר בריחה")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """שולח כפתור Web App לפתיחת המשחק."""
-    web_app_url = config.WEBAPP_URL or "https://your-service-name.onrender.com"
+    web_app_url = config.WEBAPP_URL or "https://escape-room-telegram.onrender.com"
     game_url = f"{web_app_url}/game"
 
     keyboard = [
