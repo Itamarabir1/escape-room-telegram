@@ -1,0 +1,19 @@
+# Render Blueprint – פריסת הבוט ל-Render
+# מדריך: Render Dashboard → New → Blueprint → חבר את ה-repo → Deploy
+
+previews:
+  generation: automatic
+
+services:
+  - type: web
+    runtime: python
+    name: telegram-bot
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: WEBAPP_URL
+        sync: false

@@ -14,14 +14,19 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
         #game-container {
             text-align: center;
             padding: 20px;
             border: 2px solid var(--tg-theme-button-color, #2481cc);
             border-radius: 15px;
+        }
+        #players-list {
+            text-align: right;
+            margin: 12px 0;
         }
         button {
             background-color: var(--tg-theme-button-color, #2481cc);
@@ -32,29 +37,69 @@
             cursor: pointer;
             font-size: 16px;
         }
+        .error { color: #c00; }
     </style>
 </head>
 <body>
     <div id="game-container">
-        <h1>הכנה לחדר בריחה</h1>
+        <h1>חדר בריחה AI</h1>
         <p id="user-greeting">טוען נתונים...</p>
+        <p id="game-status"></p>
+        <ul id="players-list"></ul>
         <button onclick="sendAction()">שלח פעולה לבוט</button>
     </div>
 
     <script>
-        // אתחול האפליקציה
         const tg = window.Telegram.WebApp;
-        tg.expand(); // פריסה למסך מלא
+        tg.expand();
 
-        // הצגת שם המשתמש מתוך נתוני טלגרם
         const user = tg.initDataUnsafe?.user;
         if (user) {
             document.getElementById('user-greeting').innerText = `שלום ${user.first_name}, האם אתה מוכן לברוח?`;
         }
 
+        // Read game_id from URL (same game for all group members)
+        const params = new URLSearchParams(window.location.search);
+        const gameId = params.get('game_id');
+
+        async function loadGameState() {
+            if (!gameId) {
+                document.getElementById('game-status').textContent = 'נפתח ללא מזהה משחק. התחל מהקבוצה עם /start_game.';
+                return;
+            }
+            try {
+                const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
+                if (!res.ok) {
+                    document.getElementById('game-status').className = 'error';
+                    document.getElementById('game-status').textContent = 'משחק לא נמצא או שהסתיים.';
+                    return;
+                }
+                const data = await res.json();
+                document.getElementById('game-status').textContent = 'משחק משותף – כולם רואים את אותו מצב.';
+                const names = Object.values(data.players || {});
+                const listEl = document.getElementById('players-list');
+                listEl.innerHTML = names.length ? names.map(n => `<li>${n}</li>`).join('') : '<li>אין שחקנים</li>';
+            } catch (e) {
+                document.getElementById('game-status').className = 'error';
+                document.getElementById('game-status').textContent = 'שגיאה בטעינת המשחק.';
+            }
+        }
+
+        if (gameId) {
+            loadGameState();
+        } else {
+            document.getElementById('game-status').textContent = 'התחל משחק בקבוצה עם /start_game ולחץ על "שחק עכשיו".';
+        }
+
         function sendAction() {
-            // שליחת מידע בחזרה לבוט (סוגר את ה-Web App ושולח הודעה)
-            tg.sendData("המשתמש ניסה לפתוח את הדלת!");
+            if (gameId) {
+                fetch(`/api/games/${encodeURIComponent(gameId)}/action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'המשתמש ניסה לפתוח את הדלת!' })
+                }).catch(() => {});
+            }
+            tg.sendData('המשתמש ניסה לפתוח את הדלת!');
         }
     </script>
 </body>
