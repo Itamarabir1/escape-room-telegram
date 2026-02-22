@@ -20,4 +20,5 @@ backend/room_images/
 
 # Frontend (Vite)
 frontend/node_modules/
-frontend/dist/
+# dist/ למעלה מתעלם מכל dist – חריגה כדי ש-Render יגיש את הבנייה:
+!frontend/dist/

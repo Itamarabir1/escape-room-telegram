@@ -43,14 +43,26 @@
 
 ## פריסה ל-Render
 
-1. העלה את הפרויקט ל-GitHub.
-2. ב-[Render](https://render.com): **New → Blueprint**.
-3. חבר את ה-repository (או בחר "From existing render.yaml" אם יש כבר `render.yaml`).
-4. Render יקרא את `render.yaml` שבשורש הפרויקט. אשר את השירות ולחץ **Deploy Blueprint**.
-5. ב-**Environment** של השירות הוסף:
+1. **בנה את הפרונט והעלה ל-Git** (חובה – ב-Render אין Node, אז ה־dist חייב להיות ב-repo):
+   ```bash
+   cd frontend
+   npm run build
+   cd ..
+   git add frontend/dist
+   git commit -m "build: frontend for Render"
+   git push
+   ```
+2. העלה את הפרויקט ל-GitHub (אם עדיין לא).
+3. ב-[Render](https://render.com): **New → Blueprint**.
+4. חבר את ה-repository (או בחר "From existing render.yaml" אם יש כבר `render.yaml`).
+5. Render יקרא את `render.yaml` שבשורש הפרויקט. אשר את השירות ולחץ **Deploy Blueprint**.
+6. ב-**Environment** של השירות הוסף:
    - `TELEGRAM_TOKEN` – הטוקן מ-@BotFather.
    - `WEBAPP_URL` – כתובת השירות ב-Render (למשל `https://telegram-bot-xxxx.onrender.com`), **בלי** סלאש בסוף.
-6. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL ל־`https://<שירות-שלך>.onrender.com/game` אם נדרש.
+   - `REDIS_URL` – (אם יש Redis ב-Render: הוסף Redis addon והעתק את ה-URL; אחרת השאר ריק – אז משתמשים ב-in-memory).
+7. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL ל־`https://<שירות-שלך>.onrender.com/game` אם נדרש.
+
+**אחרי שינויי פרונט:** הרץ שוב `cd frontend && npm run build`, ואז `git add frontend/dist && git commit && git push` – כדי ש-Render יגיש גרסה מעודכנת.
 
 ### בדיקת חיים
 
