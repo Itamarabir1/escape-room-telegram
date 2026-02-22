@@ -46,10 +46,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "join_game":
         if is_game_active(chat_data):
-            await query.answer(
-                "מצטערים, ההרשמה נסגרה. תוכל ללחוץ על 'שחק עכשיו' באותה הודעה כדי להיכנס למשחק.",
-                show_alert=True,
-            )
+            game_id = chat_data.get("game_id")
+            if game_id:
+                await query.answer()
+                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://your-service-name.onrender.com"
+                game_url = f"{web_app_url}/game?game_id={game_id}"
+                keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
+                await query.message.reply_text(
+                    "ההרשמה נסגרה. לחץ על הכפתור למטה כדי להיכנס למשחק:",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+            else:
+                await query.answer(
+                    "מצטערים, ההרשמה נסגרה. חפש בקבוצה את ההודעה עם הכפתור 'שחק עכשיו'.",
+                    show_alert=True,
+                )
             return
         if not add_player(chat_data, user.id, user.first_name or "שחקן"):
             await query.answer("אתה כבר רשום למשחק! 😉", show_alert=True)
@@ -68,10 +79,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "start_ai_story":
         if is_game_active(chat_data):
-            await query.answer(
-                "המשחק כבר התחיל. לחץ על 'שחק עכשיו' באותה הודעה כדי להיכנס.",
-                show_alert=True,
-            )
+            # שולח כפתור "שחק עכשיו" בהודעה חדשה – כך ברור איפה ללחוץ (גם אם עריכת ההודעה הקודמת נכשלה)
+            game_id = chat_data.get("game_id")
+            if game_id:
+                await query.answer()
+                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://your-service-name.onrender.com"
+                game_url = f"{web_app_url}/game?game_id={game_id}"
+                keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
+                await query.message.reply_text(
+                    "המשחק כבר התחיל. לחץ על הכפתור למטה כדי להיכנס:",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+            else:
+                await query.answer(
+                    "המשחק כבר התחיל. חפש בקבוצה את ההודעה עם הכפתור 'שחק עכשיו' ולחץ עליו.",
+                    show_alert=True,
+                )
             return
         try:
             chat_id = update.effective_chat.id if update.effective_chat else 0
