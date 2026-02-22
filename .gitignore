@@ -6,10 +6,18 @@ dist/
 wheels/
 *.egg-info
 
-# Virtual environments
+# Virtual environments (only .venv from uv is used; do not commit)
 venv
+.venv
 
 # Environment variables (secrets)
 .env
 *.env
 !.env.example
+
+# Generated room images (saved locally; remove this line to track them in Git)
+backend/room_images/
+
+# Frontend (Vite)
+frontend/node_modules/
+frontend/dist/

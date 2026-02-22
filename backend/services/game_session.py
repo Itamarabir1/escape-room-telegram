@@ -1,10 +1,20 @@
 # pyright: reportMissingImports=false
-"""Game session state: registration, game_id, players. Used by handlers and Web API."""
+"""Game session state: registration, game_id, players. Used by handlers and Web API.
+When REDIS_URL is set, game state is stored in Redis; otherwise in-memory."""
+import logging
 import uuid
 from typing import Any
 
-# In-memory store for active games (by game_id) so Web App can resolve state.
-# Format: { game_id: { "chat_id": int, "players": { user_id: name }, "game_active": bool } }
+from services.redis_store import (
+    redis_delete_game,
+    redis_get_game,
+    redis_set_game,
+)
+
+logger = logging.getLogger(__name__)
+
+# In-memory fallback when Redis is not available.
+# Format: { game_id: { "chat_id": int, "players": { user_id: name }, "game_active": bool, ... } }
 _games_by_id: dict[str, dict[str, Any]] = {}
 
 
@@ -46,23 +56,38 @@ def can_start_game(chat_data: dict[str, Any]) -> bool:
 
 def finish_registration(chat_id: int, chat_data: dict[str, Any]) -> str:
     """
-    Lock registration, set game_active, create game_id, store in global map for Web API.
+    Lock registration, set game_active, create game_id, store in Redis (or in-memory).
     Returns game_id.
     """
     game_id = str(uuid.uuid4())
     chat_data["game_active"] = True
     chat_data["game_id"] = game_id
-    _games_by_id[game_id] = {
+    game = {
         "chat_id": chat_id,
         "players": dict(chat_data.get("players") or {}),
         "game_active": True,
     }
+    _games_by_id[game_id] = game
+    redis_set_game(game_id, game)
+    logger.info("Game created: game_id=%s chat_id=%s", game_id, chat_id)
     return game_id
 
 
 def get_game_by_id(game_id: str) -> dict[str, Any] | None:
-    """For Web API: get game state by game_id."""
-    return _games_by_id.get(game_id)
+    """For Web API: get game state by game_id (Redis first, then in-memory)."""
+    found = redis_get_game(game_id)
+    if found is not None:
+        _games_by_id[game_id] = found  # keep in-memory in sync for handlers
+        return found
+    found = _games_by_id.get(game_id)
+    logger.debug("get_game_by_id game_id=%s found=%s", game_id, found is not None)
+    return found
+
+
+def save_game(game_id: str, game: dict[str, Any]) -> None:
+    """Persist game state to Redis and in-memory (call after mutating game)."""
+    _games_by_id[game_id] = game
+    redis_set_game(game_id, game)
 
 
 def end_game_chat(chat_data: dict[str, Any]) -> None:
@@ -70,11 +95,13 @@ def end_game_chat(chat_data: dict[str, Any]) -> None:
     game_id = chat_data.pop("game_id", None)
     if game_id:
         _games_by_id.pop(game_id, None)
+        redis_delete_game(game_id)
     chat_data["game_active"] = False
     chat_data["players"] = {}
     chat_data.pop("registration_msg_id", None)
 
 
 def end_game_by_id(game_id: str) -> None:
-    """Remove game from global store (e.g. when game ends from Web)."""
+    """Remove game from store (Redis + in-memory)."""
     _games_by_id.pop(game_id, None)
+    redis_delete_game(game_id)

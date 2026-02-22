@@ -2,31 +2,44 @@
 
 בוט טלגרם עם Web App (FastAPI) לחדר בריחה.
 
-## התקנה מקומית
+## פיתוח מקומי
 
-1. צור סביבה וירטואלית והתקן תלויות:
+כדי שהכל ירוץ אצלך בלי Render (טעינה מהירה, ללא המתנה ל-deploy):
+
+1. **התקנת תלויות** (פעם אחת):
    ```bash
-   uv sync
-   ```
-   או עם pip:
-   ```bash
-   pip install -e .
+   cd backend
+   pip install -r requirements.txt
    ```
 
-2. העתק את קובץ הדוגמה והגדר טוקן:
+2. **הגדרת סביבה** – העתק והגדר טוקן:
    ```bash
    cp backend/.env.example backend/.env
    ```
-   ערוך את `backend/.env` והכנס את הטוקן מ-@BotFather.
+   ערוך `backend/.env`: הכנס `TELEGRAM_TOKEN` מ-@BotFather.  
+   **אל תגדיר** `WEBAPP_URL` (השאר ריק או ללא השורה) – אז הבוט ישתמש ב-polling והלינקים יופנו ל-`http://localhost:8000`.
 
-3. הרצת השרת (מתוך תיקיית `backend`):
+3. **בניית הפרונט** (פעם אחת או אחרי שינויים בפרונט):
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+   הבקאנד מגיש את הקבצים מ-`frontend/dist` ב-`/static` ו-`/game`.
+
+4. **הרצת השרת** (תמיד מתוך `backend`):
    ```bash
    cd backend
-   uvicorn app.main:app --reload --port 8000
+   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
-   או: `python -m app.main` (מתוך `backend`).
+   או: `uvicorn app.main:app --reload --port 8000`
 
-4. הגדר ב-`.env` את `WEBAPP_URL` לכתובת שבה השרת רץ (למשל `http://localhost:8000`) כדי שה-Web App יעבוד.
+5. **בדיקה**: פתח את הבוט בקבוצה → `/start_game` → הירשם → "כולם פה, אפשר להתחיל!" → הבוט ישלח לינק. פתח את הלינק **בדפדפן במחשב** (`http://localhost:8000/game?game_id=...`) – הדף וה-API רצים מהמחשב שלך.
+
+   **פיתוח פרונט**: להריץ במקביל `cd frontend && npm run dev` — אז לגלוש ל-`http://localhost:5173/game?game_id=...` (Vite עם proxy ל-API).  
+   (מהטלפון הלינק localhost לא יעבוד – לבדוק מהמחשב או אחרי deploy ל-Render.)
+
+**סיכום מקומי:** רק `TELEGRAM_TOKEN` ב-`.env`, בלי `WEBAPP_URL`. אותו קוד – ב-Render תגדיר `WEBAPP_URL` ב-Dashboard.
 
 ## פריסה ל-Render
 
@@ -41,13 +54,20 @@
 
 ### בדיקת חיים
 
-- `GET /health` – מחזיר `{"status":"ok"}` (משמש את Render לבדיקת חיים).
+- `GET /health` – קובץ ייעודי: `app/routes/health.py`. מחזיר `{"status": "awake", "mode": "production"}` (לסקריפטים חיצוניים ו-Render). `mode` מתוך `ENV` (ברירת מחדל: production).
 
-## מבנה הפרויקט
+## מבנה הפרויקט (הפרדה backend / frontend)
 
-- `backend/app/main.py` — FastAPI + הבוט (נקודת כניסה)
-- `backend/app/static/` — דף ה-Web App (HTML)
-- `backend/config.py` — הגדרות (טוקן, WEBAPP_URL)
-- `backend/game_manager.py`, `backend/game_logic.py` — לוגיקת משחק
-- `frontend/` — גרסת ה-HTML לפרונט (משוכפלת ל-`backend/app/static` לפריסה)
+- **`backend/`** — קוד Python בלבד (FastAPI, API, בוט). בפרודקשן מגיש **רק** את תוצאת הבנייה מ-`frontend/dist` ב-`/static` ו-`/game` (ללא קבצי מקור פרונט).
+- **`frontend/`** — פרויקט Vite + React + TypeScript. מקור ב-`src/`; אחרי `npm run build` נוצר `dist/`. הפרונט מדבר עם הבקאנד רק דרך HTTP.
+
+ראה **`frontend/README.md`** לסקריפטים והרצת פיתוח.
+
+## Backend – Layered Architecture
+
+- **`backend/ARCHITECTURE.md`** — סכמה (Mermaid) והסבר על השכבות
+- **Presentation** (`app/`): `main.py` (חיבור בלבד), `api/`, `routes/` (כולל **`routes/health.py`** – health ייעודי), `bot/`. ה-Web App מגיש מתוך **`frontend/dist`** (תוצאת `npm run build`).
+- **Application** (`services/`): `game_session.py` — לוגיקת משחק
+- **Domain** (`domain/`): `game.py` — סכמה (`GameStateResponse`, `HealthResponse`)
+- **Infrastructure**: `config.py` (כולל `MODE`), `utils/urls.py`
 - `render.yaml` — הגדרת Blueprint ל-Render

@@ -1,0 +1,60 @@
+# Escape Room Multiplayer – Redis (game session) + PostgreSQL (persistent) + MySQL (legacy)
+# Usage: docker compose up -d redis postgres   (and optionally db for MySQL)
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: escape_room_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: escape_room_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-escape_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-escape_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-escape_room}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-escape_user} -d ${POSTGRES_DB:-escape_room}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  db:
+    image: mysql:8.0
+    container_name: escape_room_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-escape_room}
+      MYSQL_USER: ${MYSQL_USER:-escape_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-escape_pass}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  redis_data:
+  postgres_data:
+  mysql_data:

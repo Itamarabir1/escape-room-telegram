@@ -1,8 +1,7 @@
 [project]
-name = "telegram-bot"
+name = "telegram-bot-backend"
 version = "0.1.0"
-description = "בוט טלגרם עם Web App לחדר בריחה"
-readme = "README.md"
+description = "Backend: בוט טלגרם + Web App לחדר בריחה"
 requires-python = ">=3.11"
 dependencies = [
     "python-dotenv>=1.2.1",
@@ -21,3 +20,6 @@ dependencies = [
     "pymysql>=1.1.0",
     "psycopg2-binary>=2.9.0",
 ]
+
+[dependency-groups]
+dev = []
