@@ -30,6 +30,14 @@ async def _send_fallback_game_button(query, chat_data):
             "המשחק מוכן. לחץ על הכפתור למטה כדי להיכנס:",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
+    except BadRequest as e:
+        err_msg = getattr(e, "message", None) or str(e)
+        if "button" in err_msg.lower():
+            await query.message.reply_text(
+                f"המשחק מוכן. פתח את הלינק כדי להיכנס:\n{game_url}"
+            )
+        else:
+            await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
     except Exception:
         await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
 
@@ -141,14 +149,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.answer("שגיאה מהטלגרם. נסה /end_game ואז /start_game.", show_alert=True)
             except Exception:
                 pass
-            _send_fallback_game_button(query, chat_data)
+            await _send_fallback_game_button(query, chat_data)
         except Exception as e:
             logging.exception("Error in start_ai_story callback: %s", e)
             try:
                 await query.answer("אירעה שגיאה. נסה שוב או /end_game ואז /start_game.", show_alert=True)
             except Exception:
                 pass
-            _send_fallback_game_button(query, chat_data)
+            await _send_fallback_game_button(query, chat_data)
 
     elif query.data == "ignore_welcome":
         await query.answer()
