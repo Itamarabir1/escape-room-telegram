@@ -2,6 +2,7 @@
 """Telegram handlers for group game: /start_game, join, מתחילים, /end_game. Thin layer over services."""
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from config import config
@@ -13,6 +14,24 @@ from services.game_session import (
     finish_registration,
     end_game_chat,
 )
+
+
+async def _send_fallback_game_button(query, chat_data):
+    """שולח הודעה עם כפתור שחק עכשיו אם יש game_id (fallback כשנזרקת שגיאה)."""
+    game_id = chat_data.get("game_id")
+    if not game_id:
+        await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
+        return
+    web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://escape-room-telegram.onrender.com"
+    game_url = f"{web_app_url}/game?game_id={game_id}"
+    keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
+    try:
+        await query.message.reply_text(
+            "המשחק מוכן. לחץ על הכפתור למטה כדי להיכנס:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+    except Exception:
+        await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
 
 
 def register_game_handlers(application):
@@ -116,19 +135,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
                     reply_markup=reply_markup,
                 )
+            except BadRequest as edit_err:
+                logging.warning("edit_message_text BadRequest: %s; sending new message instead.", edit_err.message)
+                await query.message.reply_text(
+                    "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
+                    reply_markup=reply_markup,
+                )
             except Exception as edit_err:
                 logging.warning("edit_message_text failed: %s; sending new message instead.", edit_err)
                 await query.message.reply_text(
                     "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
                     reply_markup=reply_markup,
                 )
+        except BadRequest as e:
+            logging.exception("Telegram BadRequest in start_ai_story: %s", e.message)
+            try:
+                await query.answer("שגיאה מהטלגרם. נסה /end_game ואז /start_game.", show_alert=True)
+            except Exception:
+                pass
+            _send_fallback_game_button(query, chat_data)
         except Exception as e:
             logging.exception("Error in start_ai_story callback: %s", e)
             try:
                 await query.answer("אירעה שגיאה. נסה שוב או /end_game ואז /start_game.", show_alert=True)
             except Exception:
                 pass
-            await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
+            _send_fallback_game_button(query, chat_data)
 
     elif query.data == "ignore_welcome":
         await query.answer()
