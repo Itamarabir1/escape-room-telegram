@@ -99,13 +99,24 @@ button {
   pointer-events: none;
 }
 
-/* Demo room: placeholder when no image; clickable areas at x,y (fixed size so positions match) */
+/* Wrapper so room can be scrolled horizontally on phone (panorama) */
+.room-placeholder-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  border-radius: 12px;
+  margin: 12px 0;
+  background: #111;
+}
+
+/* Demo room: larger than screen so user scrolls to see all (1600×1200) */
 .room-placeholder {
   position: relative;
-  margin: 12px auto;
-  width: 800px;
-  height: 600px;
-  max-width: 100%;
+  width: 1600px;
+  height: 1200px;
+  min-width: 1600px;
   box-sizing: border-box;
   background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
   border-radius: 12px;

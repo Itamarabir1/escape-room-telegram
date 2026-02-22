@@ -38,9 +38,9 @@ export interface GameStateResponse {
   puzzles?: PuzzleResponse[]
 }
 
-/** Default room canvas size for placeholder (no image) */
-export const DEMO_ROOM_WIDTH = 800
-export const DEMO_ROOM_HEIGHT = 600
+/** Room canvas size – larger than screen so user scrolls left/right (panorama) */
+export const DEMO_ROOM_WIDTH = 1600
+export const DEMO_ROOM_HEIGHT = 1200
 
 export interface ApiError {
   status: number

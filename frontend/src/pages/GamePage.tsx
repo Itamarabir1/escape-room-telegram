@@ -180,23 +180,25 @@ export default function GamePage() {
               </div>
             </div>
           ) : (
-            <div
-              className="room-placeholder"
-              style={{ width: DEMO_ROOM_WIDTH, height: DEMO_ROOM_HEIGHT }}
-            >
-              <p className="room-placeholder-label">לחץ על הפריטים</p>
-              {roomItems.map((it) => (
-                <button
-                  key={it.id}
-                  type="button"
-                  className="room-item-hotspot"
-                  style={{ left: it.x, top: it.y }}
-                  onClick={() => openTask(it)}
-                  title={it.label}
-                >
-                  {it.label}
-                </button>
-              ))}
+            <div className="room-placeholder-wrap">
+              <div
+                className="room-placeholder"
+                style={{ width: DEMO_ROOM_WIDTH, height: DEMO_ROOM_HEIGHT }}
+              >
+                <p className="room-placeholder-label">לחץ על הפריטים – גלול ימינה/שמאלה לראות את כל החדר</p>
+                {roomItems.map((it) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    className="room-item-hotspot"
+                    style={{ left: it.x, top: it.y }}
+                    onClick={() => openTask(it)}
+                    title={it.label}
+                  >
+                    {it.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

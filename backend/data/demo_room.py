@@ -5,14 +5,15 @@ Positions (x,y) mimic where objects will sit on the real image later."""
 
 from utils.puzzle import CAESAR_SHIFT, PROMPT_TEXT, SAFE_BACKSTORY, caesar_encode
 
-# Room canvas size used for placeholder (same ratio as typical room image)
-DEMO_ROOM_WIDTH = 800
-DEMO_ROOM_HEIGHT = 600
+# Room canvas size – גדול מהמסך כדי שיהיה צורך לגלול ימינה/שמאלה (פנורמה)
+DEMO_ROOM_WIDTH = 1600
+DEMO_ROOM_HEIGHT = 1200
 
 DEMO_ROOM_ITEMS = [
-    {"id": "safe_1", "label": "כספת", "x": 320, "y": 220, "action_type": "unlock"},
-    {"id": "picture_wall", "label": "תמונה על הקיר", "x": 120, "y": 80, "action_type": "examine"},
-    {"id": "carpet", "label": "שטיח", "x": 380, "y": 420, "action_type": "examine"},
+    {"id": "safe_1", "label": "כספת", "x": 640, "y": 440, "action_type": "unlock"},
+    {"id": "picture_wall", "label": "תמונה על הקיר", "x": 240, "y": 160, "action_type": "examine"},
+    {"id": "carpet", "label": "שטיח", "x": 760, "y": 840, "action_type": "examine"},
+    {"id": "board_servers", "label": "לוח חשמל", "x": 1000, "y": 300, "action_type": "unlock"},
 ]
 
 SAFE_PASSWORD = "KEY"
@@ -38,6 +39,20 @@ DEMO_ROOM_PUZZLES = {
             "שטיח מכסה את הרצפה. מתחתיו אולי מסתתר רמז, "
             "אבל כרגע עדיף להתמקד בכספת ובתמונה על הקיר."
         ),
+    },
+    "board_servers": {
+        "type": "unlock",
+        "backstory": (
+            "לוח השרתים – \"מי באותה רשת?\"\n\n"
+            "על הקיר יש לוח עם כתובות IP של מכשירים בחדר:\n\n"
+            "192.168.1.12\n192.168.1.45\n192.168.2.7\n192.168.1.99\n\n"
+            "ומתחת כתוב: Only devices in the same subnet can communicate.\n\n"
+            "רמז: Subnet Mask: 255.255.255.0\n\n"
+            "255.255.255.0 אומר ששלושת האוקטטים הראשונים מגדירים רשת. "
+            "כמה מכשירים יכולים לתקשר זה עם זה? (הכנס מספר.)"
+        ),
+        "correct_answer": "3",
+        "prompt_text": "הכנס את מספר המכשירים באותה רשת:",
     },
 }
 
