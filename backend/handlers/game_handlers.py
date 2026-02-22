@@ -16,30 +16,33 @@ from services.game_session import (
 )
 
 
+def _game_url(game_id: str) -> str:
+    web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://escape-room-telegram.onrender.com"
+    return f"{web_app_url}/game?game_id={game_id}"
+
+
+async def _send_game_button_or_link(message, game_id: str, intro: str):
+    """שולח הודעה עם כפתור Web App 'שחק עכשיו'; אם טלגרם מחזיר Button_type_invalid – שולח לינק כטקסט."""
+    game_url = _game_url(game_id)
+    keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
+    try:
+        await message.reply_text(intro, reply_markup=InlineKeyboardMarkup(keyboard))
+    except BadRequest as e:
+        err_msg = getattr(e, "message", None) or str(e)
+        if "button" in err_msg.lower():
+            await message.reply_text(f"{intro}\n{game_url}")
+        else:
+            raise
+
+
 async def _send_fallback_game_button(query, chat_data):
-    """שולח הודעה עם כפתור שחק עכשיו אם יש game_id (fallback כשנזרקת שגיאה)."""
+    """שולח הודעה עם לינק למשחק (fallback כשנזרקת שגיאה – בלי לנסות כפתור שוב)."""
     game_id = chat_data.get("game_id")
     if not game_id:
         await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
         return
-    web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://escape-room-telegram.onrender.com"
-    game_url = f"{web_app_url}/game?game_id={game_id}"
-    keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
-    try:
-        await query.message.reply_text(
-            "המשחק מוכן. לחץ על הכפתור למטה כדי להיכנס:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-    except BadRequest as e:
-        err_msg = getattr(e, "message", None) or str(e)
-        if "button" in err_msg.lower():
-            await query.message.reply_text(
-                f"המשחק מוכן. פתח את הלינק כדי להיכנס:\n{game_url}"
-            )
-        else:
-            await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
-    except Exception:
-        await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
+    game_url = _game_url(game_id)
+    await query.message.reply_text(f"המשחק מוכן. פתח את הלינק כדי להיכנס:\n{game_url}")
 
 
 def register_game_handlers(application):
@@ -77,12 +80,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             game_id = chat_data.get("game_id")
             if game_id:
                 await query.answer()
-                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://escape-room-telegram.onrender.com"
-                game_url = f"{web_app_url}/game?game_id={game_id}"
-                keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
-                await query.message.reply_text(
+                await _send_game_button_or_link(
+                    query.message, game_id,
                     "ההרשמה נסגרה. לחץ על הכפתור למטה כדי להיכנס למשחק:",
-                    reply_markup=InlineKeyboardMarkup(keyboard),
                 )
             else:
                 await query.answer(
@@ -112,12 +112,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             game_id = chat_data.get("game_id")
             if game_id:
                 await query.answer()
-                web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/") or "https://escape-room-telegram.onrender.com"
-                game_url = f"{web_app_url}/game?game_id={game_id}"
-                keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))]]
-                await query.message.reply_text(
+                await _send_game_button_or_link(
+                    query.message, game_id,
                     "המשחק כבר התחיל. לחץ על הכפתור למטה כדי להיכנס:",
-                    reply_markup=InlineKeyboardMarkup(keyboard),
                 )
             else:
                 await query.answer(
@@ -128,23 +125,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             chat_id = update.effective_chat.id if update.effective_chat else 0
             game_id = finish_registration(chat_id, chat_data)
-            web_app_url = (config.WEBAPP_URL or "").strip().rstrip("/")
-            if not web_app_url:
-                logging.warning("WEBAPP_URL not set; using default.")
-                web_app_url = "https://escape-room-telegram.onrender.com"
-            game_url = f"{web_app_url}/game?game_id={game_id}"
-            keyboard = [
-                [InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=game_url))],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
             await query.answer()
-            # שולח הודעה חדשה עם הכפתור – כך תמיד רואים כפתור "שחק עכשיו" ופחות סיכון ששגיאה תמנע הצגה
-            await query.message.reply_text(
+            await _send_game_button_or_link(
+                query.message, game_id,
                 "🎲 ההרשמה נסגרה!\n\nלחץ על הכפתור \"שחק עכשיו\" למטה – ייפתח דף המשחק בדפדפן.",
-                reply_markup=reply_markup,
             )
         except BadRequest as e:
-            logging.exception("Telegram BadRequest in start_ai_story: %s", e.message)
+            logging.exception("Telegram BadRequest in start_ai_story: %s", getattr(e, "message", str(e)))
             try:
                 await query.answer("שגיאה מהטלגרם. נסה /end_game ואז /start_game.", show_alert=True)
             except Exception:
