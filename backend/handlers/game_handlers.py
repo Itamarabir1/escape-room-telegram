@@ -130,23 +130,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.answer()
-            try:
-                await query.edit_message_text(
-                    "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
-                    reply_markup=reply_markup,
-                )
-            except BadRequest as edit_err:
-                logging.warning("edit_message_text BadRequest: %s; sending new message instead.", edit_err.message)
-                await query.message.reply_text(
-                    "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
-                    reply_markup=reply_markup,
-                )
-            except Exception as edit_err:
-                logging.warning("edit_message_text failed: %s; sending new message instead.", edit_err)
-                await query.message.reply_text(
-                    "🎲 ההרשמה נסגרה! לחצו על הכפתור למטה כדי להיכנס לאותו משחק משותף.",
-                    reply_markup=reply_markup,
-                )
+            # שולח הודעה חדשה עם הכפתור – כך תמיד רואים כפתור "שחק עכשיו" ופחות סיכון ששגיאה תמנע הצגה
+            await query.message.reply_text(
+                "🎲 ההרשמה נסגרה!\n\nלחץ על הכפתור \"שחק עכשיו\" למטה – ייפתח דף המשחק בדפדפן.",
+                reply_markup=reply_markup,
+            )
         except BadRequest as e:
             logging.exception("Telegram BadRequest in start_ai_story: %s", e.message)
             try:
