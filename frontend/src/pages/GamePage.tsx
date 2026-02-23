@@ -59,7 +59,7 @@ const ROOM_HOTSPOT_SHAPES: Array<
   { itemId: 'door', type: 'polygon', points: '753,289 889,291 891,427 853,470 849,555 755,557' },
   { itemId: 'safe_1', type: 'polygon', points: '965,523 1131,527 1187,543 1184,650 965,651' },
   { itemId: 'clock_1', type: 'circle', cx: 649, cy: 248, r: 41 },
-  { itemId: 'board_servers', type: 'polygon', points: '7,38 351,236 346,560 146,653 1,653' },
+  { itemId: 'board_servers', type: 'polygon', points: '7,38 351,236 346,560 1,653' },
 ]
 
 function formatTimer(seconds: number): string {
@@ -83,6 +83,8 @@ export default function GamePage() {
   const [puzzleSolvedNotification, setPuzzleSolvedNotification] = useState<string | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_TIMER_SECONDS)
   const [gameOver, setGameOver] = useState(false)
+  const [gameStarted, setGameStarted] = useState(false)
+  const [startUIVisible, setStartUIVisible] = useState(true)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const lorePlayedRef = useRef(false)
@@ -102,26 +104,34 @@ export default function GamePage() {
     setStatusError(isError)
   }, [])
 
-  const playLoreAudio = useCallback((gid: string) => {
+  const playLoreAudio = useCallback((gid: string, onEnded?: () => void) => {
     if (lorePlayedRef.current) return
     lorePlayedRef.current = true
+    const runEnded = () => {
+      onEnded?.()
+    }
     fetch(getLoreAudioUrl(gid))
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
         if (!blob) {
           lorePlayedRef.current = false
+          runEnded()
           return
         }
         const url = URL.createObjectURL(blob)
         const audio = new Audio(url)
         const cleanup = () => URL.revokeObjectURL(url)
-        audio.play().then(cleanup).catch(() => {
+        audio.addEventListener('ended', () => {
+          cleanup()
+          runEnded()
+        })
+        audio.play().then(() => {}).catch(() => {
           cleanup()
           lorePlayedRef.current = false
           const tryAgain = () => {
             document.removeEventListener('click', tryAgain)
             document.removeEventListener('touchstart', tryAgain)
-            playLoreAudio(gid)
+            playLoreAudio(gid, onEnded)
           }
           document.addEventListener('click', tryAgain, { once: true })
           document.addEventListener('touchstart', tryAgain, { once: true })
@@ -129,6 +139,7 @@ export default function GamePage() {
       })
       .catch(() => {
         lorePlayedRef.current = false
+        runEnded()
       })
   }, [])
 
@@ -139,6 +150,8 @@ export default function GamePage() {
     }
     setRoomLoading(true)
     setRoomImageLoaded(false)
+    setGameStarted(false)
+    setStartUIVisible(true)
     lorePlayedRef.current = false
     getGameState(gameId)
       .then((data) => {
@@ -155,19 +168,12 @@ export default function GamePage() {
   }, [gameId, showStatus])
 
   useEffect(() => {
-    if (!gameId || !room?.room_lore || roomLoading) return
-    const hasImage = Boolean(room?.room_image_url)
-    if (hasImage && !roomImageLoaded) return
-    playLoreAudio(gameId)
-  }, [gameId, room?.room_lore, room?.room_image_url, roomLoading, roomImageLoaded, playLoreAudio])
-
-  useEffect(() => {
     const hasRoomImage = !roomLoading && (room?.room_items?.length ?? 0) > 0 && Boolean(room?.room_image_url)
     if (hasRoomImage) document.body.classList.add('game-has-room')
     return () => document.body.classList.remove('game-has-room')
   }, [roomLoading, room?.room_items?.length, room?.room_image_url])
 
-  const showTimer = (room?.room_items?.length ?? 0) > 0 && !roomLoading
+  const showTimer = (room?.room_items?.length ?? 0) > 0 && !roomLoading && gameStarted
   useEffect(() => {
     if (!showTimer) return
     if (!timerStartedRef.current) {
@@ -198,7 +204,17 @@ export default function GamePage() {
 
   useEffect(() => {
     timeUpSentRef.current = false
+    timerStartedRef.current = false
   }, [gameId])
+
+  const onStartClick = useCallback(() => {
+    setGameStarted(true)
+    if (gameId && room?.room_lore) {
+      playLoreAudio(gameId, () => setStartUIVisible(false))
+    } else {
+      setStartUIVisible(false)
+    }
+  }, [gameId, room?.room_lore, playLoreAudio])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -327,9 +343,19 @@ export default function GamePage() {
           {status}
         </p>
       )}
+      {showRoomSection && !roomLoading && startUIVisible && (
+        <button
+          type="button"
+          className="room-start-btn"
+          onClick={onStartClick}
+          aria-label="התחל את המשחק"
+        >
+          התחל
+        </button>
+      )}
       {showRoomSection && !roomLoading && (
         <div className="room-section">
-          {situationText && (
+          {situationText && startUIVisible && (
             <p className="room-situation" aria-live="polite">
               {situationText}
             </p>
@@ -344,7 +370,7 @@ export default function GamePage() {
                   onLoad={onRoomImageLoad}
                 />
                 <svg
-                  className="room-hotspots-svg"
+                  className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''}`}
                   viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
                   preserveAspectRatio="xMidYMid meet"
                   aria-hidden
@@ -352,7 +378,10 @@ export default function GamePage() {
                   {ROOM_HOTSPOT_SHAPES.map((shape) => {
                     const item = roomItems.find((it) => it.id === shape.itemId)
                     if (!item) return null
-                    const handleClick = () => openTask(item)
+                    const handleClick = () => {
+                      if (!gameStarted) return
+                      openTask(item)
+                    }
                     if (shape.type === 'polygon') {
                       return (
                         <polygon
@@ -392,7 +421,7 @@ export default function GamePage() {
               </div>
             </div>
           ) : (
-            <div className="room-placeholder-wrap">
+            <div className={`room-placeholder-wrap ${!gameStarted ? 'room-hotspots-disabled' : ''}`}>
               <div
                 className="room-placeholder"
                 style={{ width: DEMO_ROOM_WIDTH, height: DEMO_ROOM_HEIGHT }}
@@ -404,8 +433,9 @@ export default function GamePage() {
                     type="button"
                     className="room-item-hotspot"
                     style={{ left: it.x, top: it.y }}
-                    onClick={() => openTask(it)}
+                    onClick={() => gameStarted && openTask(it)}
                     title={it.label}
+                    disabled={!gameStarted}
                   >
                     {it.label}
                   </button>
