@@ -35,16 +35,10 @@ class Config:
     # Redis – live game session (room, items, puzzles). Used when REDIS_URL is set.
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-    # Database (MySQL) – legacy multiplayer escape room tables
+    # Database – PostgreSQL only (schema in db/schema.sql)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "mysql+pymysql://escape_user:escape_pass@localhost:3306/escape_room",
-    )
-
-    # PostgreSQL – persistent data (e.g. game history, analytics). Use when needed.
-    POSTGRES_URL: str = os.getenv(
-        "POSTGRES_URL",
-        "postgresql://escape_user:escape_pass@localhost:5432/escape_room",
+        os.getenv("POSTGRES_URL", "postgresql://escape_user:escape_pass@localhost:5432/escape_room"),
     )
 
     # Redis TTL for game session (seconds). Default 24h.

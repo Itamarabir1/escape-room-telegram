@@ -1,7 +1,7 @@
 # pyright: reportMissingImports=false
 """
 SQLAlchemy models for Escape Room Multiplayer.
-Matches backend/db/schema.sql (MySQL).
+Matches backend/db/schema.sql (PostgreSQL).
 """
 from datetime import datetime
 from enum import Enum as PyEnum
