@@ -107,15 +107,11 @@ export default function GamePage() {
   const playLoreAudio = useCallback((gid: string, onEnded?: () => void) => {
     if (lorePlayedRef.current) return
     lorePlayedRef.current = true
-    const runEnded = () => {
-      onEnded?.()
-    }
     fetch(getLoreAudioUrl(gid))
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
         if (!blob) {
           lorePlayedRef.current = false
-          runEnded()
           return
         }
         const url = URL.createObjectURL(blob)
@@ -123,7 +119,7 @@ export default function GamePage() {
         const cleanup = () => URL.revokeObjectURL(url)
         audio.addEventListener('ended', () => {
           cleanup()
-          runEnded()
+          onEnded?.()
         })
         audio.play().then(() => {}).catch(() => {
           cleanup()
@@ -139,7 +135,6 @@ export default function GamePage() {
       })
       .catch(() => {
         lorePlayedRef.current = false
-        runEnded()
       })
   }, [])
 
@@ -344,22 +339,24 @@ export default function GamePage() {
         </p>
       )}
       {showRoomSection && !roomLoading && startUIVisible && (
-        <button
-          type="button"
-          className="room-start-btn"
-          onClick={onStartClick}
-          aria-label="התחל את המשחק"
-        >
-          התחל
-        </button>
-      )}
-      {showRoomSection && !roomLoading && (
-        <div className="room-section">
-          {situationText && startUIVisible && (
-            <p className="room-situation" aria-live="polite">
+        <div className="room-start-ui">
+          <button
+            type="button"
+            className="room-start-btn"
+            onClick={onStartClick}
+            aria-label="התחל את המשחק"
+          >
+            התחל
+          </button>
+          {situationText && (
+            <p className="room-situation room-situation-below-btn" aria-live="polite">
               {situationText}
             </p>
           )}
+        </div>
+      )}
+      {showRoomSection && !roomLoading && (
+        <div className="room-section">
           {hasImage ? (
             <div className="room-wrapper" ref={panoramaRef}>
               <div className="room-container">
