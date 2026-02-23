@@ -76,8 +76,20 @@ git push
 
 ---
 
+## Cron-job.org (כדי שהשרת לא יירדם)
+
+ב-Render Free ה-instance נרדם אחרי ~15 דקות ללא תנועה. כדי להשאיר אותו ער, הגדר ב-[Cron-job.org](https://cron-job.org) קריאה **כל 14 דקות** (או פחות) ל-endpoint ה-health:
+
+- **כתובת:** `https://escape-room-telegram.onrender.com/health`  
+  (אם שם השירות שלך ב-Render שונה – החלף את `escape-room-telegram` בשם השירות שלך.)
+- **שיטה:** GET (ללא auth).
+- **Timeout:** אחרי spin down הבקשה הראשונה יכולה לקחת עד ~50 שניות – ב-Cron-job.org הגדר timeout של **לפחות 60 שניות**.
+
+---
+
 ## אם משהו לא עובד
 
 - **דף /game מחזיר JSON "קובץ המשחק לא נמצא":** הרץ שוב את שלב 1 (בניית פרונט + `git add frontend/dist` + commit + push) ו-Redeploy ב-Render.
 - **הבוט לא מגיב:** וודא ש־`TELEGRAM_TOKEN` נכון ו־`WEBAPP_URL` מוגדר (כתובת ה-Render **בלי** סלאש). אחרי שינוי ב-Environment Render עושה Redeploy.
 - **"משחק לא נמצא" כשפותחים לינק:** וודא ש־Redis רץ (אם הוספת Redis ב-Render – `REDIS_URL` מוגדר). בלי Redis המשחקים נשמרים רק בזיכרון ויכולים להיעלם אחרי sleep.
+- **השרת נרדם:** וודא ש-Cron-job.org קורא ל־`/health` **כל 14 דקות** (כתובת מלאה למשל `https://escape-room-telegram.onrender.com/health`), ו-timeout 60+ שניות.
