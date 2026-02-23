@@ -54,7 +54,13 @@ async def get_game_state(game_id: str) -> GameStateResponse:
         logger.warning("get_game_state 404 game_id=%s", game_id)
         raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
 
-    if not game.get("room_image_url"):
+    needs_demo = (
+        not game.get("room_image_url")
+        or len(game.get("room_items") or []) < len(DEMO_ROOM_ITEMS)
+    )
+    if needs_demo:
+        if game.get("room_image_url"):
+            game["room_image_url"] = ""  # avoid black/broken image when fixing incomplete items
         _apply_demo_room(game)
         save_game(game_id, game)
         logger.info("Room applied for game_id=%s (items + positions, no image)", game_id)
