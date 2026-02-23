@@ -14,7 +14,6 @@ router = APIRouter(tags=["pages"])
 # מונע cache של דף המשחק – עדכון פרונט ייטען מיד
 GAME_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate"}
 
-
 @router.get("/game")
 async def get_game():
     """Serves the game Web App (HTML) from frontend/dist. Build first: cd frontend && npm run build."""
