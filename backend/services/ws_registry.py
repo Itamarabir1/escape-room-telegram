@@ -58,3 +58,20 @@ async def broadcast_puzzle_solved(
             dead.add(ws)
     for ws in dead:
         unregister(game_id, ws)
+
+
+async def broadcast_game_over(game_id: str) -> None:
+    """Send game_over event to all connections for this game (e.g. timer expired)."""
+    payload: dict[str, Any] = {"event": "game_over"}
+    text = json.dumps(payload, ensure_ascii=False)
+    if game_id not in _connections:
+        return
+    dead: set[WebSocket] = set()
+    for ws in _connections[game_id]:
+        try:
+            await ws.send_text(text)
+        except Exception as e:
+            logger.debug("WS game_over send failed game_id=%s: %s", game_id, e)
+            dead.add(ws)
+    for ws in dead:
+        unregister(game_id, ws)

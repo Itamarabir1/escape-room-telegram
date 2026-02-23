@@ -6,20 +6,25 @@ Positions (x,y) mimic where objects will sit on the real image later."""
 from utils.puzzle import CAESAR_SHIFT, PROMPT_TEXT, SAFE_BACKSTORY, caesar_encode
 
 # Room canvas size – גדול מהמסך כדי שיהיה צורך לגלול ימינה/שמאלה (פנורמה)
-DEMO_ROOM_WIDTH = 1600
-DEMO_ROOM_HEIGHT = 1200
+DEMO_ROOM_WIDTH = 1280
+DEMO_ROOM_HEIGHT = 768
 
 DEMO_ROOM_ITEMS = [
-    {"id": "safe_1", "label": "כספת", "x": 640, "y": 440, "action_type": "unlock"},
-    {"id": "picture_wall", "label": "תמונה על הקיר", "x": 240, "y": 160, "action_type": "examine"},
-    {"id": "carpet", "label": "שטיח", "x": 760, "y": 840, "action_type": "examine"},
-    {"id": "board_servers", "label": "לוח חשמל", "x": 1000, "y": 300, "action_type": "unlock"},
-    {"id": "clock_1", "label": "שעון", "x": 200, "y": 600, "action_type": "unlock"},
+    {"id": "door", "label": "דלת", "x": 678, "y": 138, "action_type": "examine"},
+    {"id": "safe_1", "label": "כספת", "x": 512, "y": 282, "action_type": "unlock"},
+    {"id": "picture_wall", "label": "תמונה על הקיר", "x": 192, "y": 102, "action_type": "examine"},
+    {"id": "carpet", "label": "שטיח", "x": 608, "y": 538, "action_type": "examine"},
+    {"id": "board_servers", "label": "לוח בקרה", "x": 141, "y": 23, "action_type": "unlock"},
+    {"id": "clock_1", "label": "שעון", "x": 538, "y": 92, "action_type": "unlock"},
 ]
 
 SAFE_PASSWORD = "KEY"
 
 DEMO_ROOM_PUZZLES = {
+    "door": {
+        "type": "examine",
+        "backstory": "הדלת נעולה. צריך למצוא מפתח או קוד כדי לצאת מהחדר. חפשו רמזים בכספת, בשעון ובלוח הבקרה.",
+    },
     "safe_1": {
         "type": "unlock",
         "backstory": SAFE_BACKSTORY,

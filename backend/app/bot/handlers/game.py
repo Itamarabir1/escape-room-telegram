@@ -12,6 +12,7 @@ from services.game_session import (
     get_players_list_text,
     finish_registration,
     end_game_chat,
+    get_game_by_id,
 )
 from services.player_repository import register_player as register_player_db
 from utils.urls import game_page_url
@@ -50,8 +51,12 @@ async def send_fallback_game_link(query, chat_data: dict) -> None:
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_data = context.chat_data
     if is_game_active(chat_data):
-        await update.message.reply_text("המשחק כבר התחיל! אי אפשר להירשם שוב כרגע. ✋")
-        return
+        game_id = chat_data.get("game_id")
+        if game_id and get_game_by_id(game_id) is None:
+            end_game_chat(chat_data)
+        else:
+            await update.message.reply_text("המשחק כבר התחיל! אי אפשר להירשם שוב כרגע. ✋")
+            return
     start_registration(chat_data)
     keyboard = [[InlineKeyboardButton("אני רוצה לשחק! 🙋‍♂️", callback_data="join_game")]]
     sent = await update.message.reply_text(

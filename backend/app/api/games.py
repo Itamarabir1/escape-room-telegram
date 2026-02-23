@@ -7,19 +7,21 @@ Architecture: Task content and correct answers live in backend (Redis game state
 Room image is not generated at runtime; use demo room (items + positions) or a static image later.
 """
 import logging
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import Response
 
 from AI.audio_service import generate_voice_over
 from config import config
 from data.demo_room import (
+    DEMO_ROOM_HEIGHT,
     DEMO_ROOM_ITEMS,
     DEMO_ROOM_META,
     DEMO_ROOM_PUZZLES,
+    DEMO_ROOM_WIDTH,
 )
 from domain.game import GameStateResponse, PuzzleResponse
-from services.game_session import get_game_by_id, save_game
-from services.ws_registry import broadcast_puzzle_solved
+from services.game_session import end_game_by_id, get_game_by_id, save_game
+from services.ws_registry import broadcast_game_over, broadcast_puzzle_solved
 from utils.puzzle import (
     SAFE_BACKSTORY,
     PROMPT_TEXT,
@@ -39,6 +41,8 @@ def _apply_demo_room(game: dict) -> None:
     """Inject demo room items, puzzles, and static room image URL. State is saved to Redis."""
     base = config.base_url().rstrip("/")
     game["room_image_url"] = f"{base}/room/escape_room.png"
+    game["room_image_width"] = DEMO_ROOM_WIDTH
+    game["room_image_height"] = DEMO_ROOM_HEIGHT
     game["room_name"] = DEMO_ROOM_META["room_name"]
     game["room_description"] = DEMO_ROOM_META["room_description"]
     game["room_lore"] = DEMO_ROOM_META.get("room_lore", "")
@@ -46,6 +50,28 @@ def _apply_demo_room(game: dict) -> None:
     game["room_puzzles"] = {}
     for item_id, p in DEMO_ROOM_PUZZLES.items():
         game["room_puzzles"][item_id] = dict(p)
+
+
+@router.post("/{game_id}/time_up")
+async def game_time_up(game_id: str, request: Request) -> dict:
+    """Called when the frontend timer reaches 0. Ends the game, broadcasts game_over via WebSocket, notifies the Telegram group."""
+    game = get_game_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    chat_id = game.get("chat_id")
+    end_game_by_id(game_id)
+    await broadcast_game_over(game_id)
+    if chat_id is not None:
+        try:
+            bot = getattr(request.app.state.tg_app, "bot", None)
+            if bot:
+                await bot.send_message(
+                    chat_id=int(chat_id),
+                    text="⏰ הזמן נגמר! Game Over.\n\nהמשחק הסתיים. כתבו /start_game כדי להתחיל מחדש.",
+                )
+        except Exception as e:
+            logger.warning("Failed to send time-up message to group chat_id=%s: %s", chat_id, e)
+    return {"ok": True, "message": "game_over"}
 
 
 @router.get("/{game_id}")
@@ -59,6 +85,7 @@ async def get_game_state(game_id: str) -> GameStateResponse:
     needs_demo = (
         not game.get("room_image_url")
         or len(game.get("room_items") or []) < len(DEMO_ROOM_ITEMS)
+        or not game.get("room_image_width")
     )
     if needs_demo:
         _apply_demo_room(game)
@@ -75,6 +102,8 @@ async def get_game_state(game_id: str) -> GameStateResponse:
     if game.get("room_image_url") or game.get("room_items"):
         if game.get("room_image_url"):
             out["room_image_url"] = game["room_image_url"]
+            out["room_image_width"] = game.get("room_image_width") or DEMO_ROOM_WIDTH
+            out["room_image_height"] = game.get("room_image_height") or DEMO_ROOM_HEIGHT
         out["room_name"] = game.get("room_name", "")
         out["room_description"] = game.get("room_description", "")
         out["room_lore"] = game.get("room_lore", "")

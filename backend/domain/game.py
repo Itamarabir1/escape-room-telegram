@@ -28,6 +28,8 @@ class GameStateResponse(TypedDict):
     game_active: bool
     # AI room or demo room (filled on first load or when demo=1)
     room_image_url: NotRequired[str]
+    room_image_width: NotRequired[int]
+    room_image_height: NotRequired[int]
     room_name: NotRequired[str]
     room_description: NotRequired[str]
     room_lore: NotRequired[str]

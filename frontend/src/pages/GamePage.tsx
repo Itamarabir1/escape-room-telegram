@@ -3,6 +3,7 @@ import {
   getGameState,
   getGameWebSocketUrl,
   getLoreAudioUrl,
+  reportTimeUp,
   sendGameAction,
   type ApiError,
   type GameStateResponse,
@@ -70,9 +71,11 @@ export default function GamePage() {
   const [actionSubmitting, setActionSubmitting] = useState(false)
   const [puzzleSolvedNotification, setPuzzleSolvedNotification] = useState<string | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_TIMER_SECONDS)
+  const [gameOver, setGameOver] = useState(false)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const lorePlayedRef = useRef(false)
   const timerStartedRef = useRef(false)
+  const timeUpSentRef = useRef(false)
 
   const tg = getTelegramWebApp()
   if (tg.expand) tg.expand()
@@ -122,10 +125,9 @@ export default function GamePage() {
   }, [gameId, showStatus])
 
   useEffect(() => {
-    if (gameId && room?.room_lore && !roomLoading) {
-      playLoreAudio(gameId)
-    }
-  }, [gameId, room?.room_lore, roomLoading, playLoreAudio])
+    if (!gameId || !room?.room_lore || roomLoading || room?.room_image_url) return
+    playLoreAudio(gameId)
+  }, [gameId, room?.room_lore, room?.room_image_url, roomLoading, playLoreAudio])
 
   useEffect(() => {
     const hasRoomImage = !roomLoading && (room?.room_items?.length ?? 0) > 0 && Boolean(room?.room_image_url)
@@ -153,8 +155,18 @@ export default function GamePage() {
   }, [showTimer])
 
   useEffect(() => {
+    if (!showTimer || !gameId || secondsLeft > 0 || timeUpSentRef.current) return
+    timeUpSentRef.current = true
+    reportTimeUp(gameId).catch(() => {})
+  }, [showTimer, gameId, secondsLeft])
+
+  useEffect(() => {
     if (!showTimer) timerStartedRef.current = false
   }, [showTimer])
+
+  useEffect(() => {
+    timeUpSentRef.current = false
+  }, [gameId])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -163,11 +175,15 @@ export default function GamePage() {
     const ws = new WebSocket(url)
     ws.onmessage = (ev) => {
       try {
-        const data = JSON.parse(ev.data) as PuzzleSolvedEvent
+        const data = JSON.parse(ev.data) as PuzzleSolvedEvent | { event: string }
+        if (data.event === 'game_over') {
+          setGameOver(true)
+          return
+        }
         if (data.event !== 'puzzle_solved') return
-        const text = data.solver_name
-          ? `${data.solver_name} פתח/ה את ${data.item_label}. הפתרון: ${data.answer}`
-          : `${data.item_label} נפתח/ה. הפתרון: ${data.answer}`
+        const text = (data as PuzzleSolvedEvent).solver_name
+          ? `${(data as PuzzleSolvedEvent).solver_name} פתח/ה את ${(data as PuzzleSolvedEvent).item_label}. הפתרון: ${(data as PuzzleSolvedEvent).answer}`
+          : `${(data as PuzzleSolvedEvent).item_label} נפתח/ה. הפתרון: ${(data as PuzzleSolvedEvent).answer}`
         if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
         setPuzzleSolvedNotification(text)
         puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
@@ -186,8 +202,17 @@ export default function GamePage() {
 
   const onRoomImageLoad = useCallback(() => {
     const wrap = panoramaRef.current
-    if (wrap) wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2
-  }, [])
+    if (!wrap) return
+    const centerScroll = () => {
+      if (!panoramaRef.current) return
+      const w = panoramaRef.current
+      const maxScroll = w.scrollWidth - w.clientWidth
+      w.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
+    }
+    requestAnimationFrame(() => requestAnimationFrame(centerScroll))
+    setTimeout(centerScroll, 150)
+    if (gameId && room?.room_lore) playLoreAudio(gameId)
+  }, [gameId, room?.room_lore, playLoreAudio])
 
   const openTask = useCallback((item: RoomItemResponse) => {
     setSelectedItem(item)
@@ -236,7 +261,14 @@ export default function GamePage() {
 
   return (
     <div className="game-container">
-      {showTimer && (
+      {gameOver && (
+        <div className="game-over-overlay" role="alert">
+          <h2 className="game-over-title">Game Over</h2>
+          <p className="game-over-text">הזמן נגמר. המשחק הסתיים.</p>
+          <p className="game-over-hint">כתבו /start_game בקבוצה כדי להתחיל מחדש.</p>
+        </div>
+      )}
+      {showTimer && !gameOver && (
         <div className="room-timer" aria-live="polite">
           {formatTimer(secondsLeft)}
         </div>
@@ -261,12 +293,40 @@ export default function GamePage() {
           )}
           {hasImage ? (
             <div className="room-wrapper" ref={panoramaRef}>
-              <img
-                src={room!.room_image_url}
-                className="room-image"
-                alt="חדר בריחה"
-                onLoad={onRoomImageLoad}
-              />
+              <div className="room-container">
+                <img
+                  src={room!.room_image_url}
+                  className="room-image"
+                  alt="חדר בריחה"
+                  onLoad={onRoomImageLoad}
+                />
+                {roomItems.map((it) => {
+                  const imgW = room?.room_image_width ?? DEMO_ROOM_WIDTH
+                  const imgH = room?.room_image_height ?? DEMO_ROOM_HEIGHT
+                  const leftPct = (it.x / imgW) * 100
+                  const topPct = (it.y / imgH) * 100
+                  const hotspotW = 14
+                  const hotspotH = 18
+                  return (
+                    <button
+                      key={it.id}
+                      type="button"
+                      className="room-hotspot"
+                      style={{
+                        left: `${leftPct}%`,
+                        top: `${topPct}%`,
+                        width: `${hotspotW}%`,
+                        height: `${hotspotH}%`,
+                        transform: 'translate(-50%, -50%)',
+                      }}
+                      onClick={() => openTask(it)}
+                      title={it.label}
+                    >
+                      <span className="room-hotspot-label">{it.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           ) : (
             <div className="room-placeholder-wrap">

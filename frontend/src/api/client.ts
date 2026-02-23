@@ -30,6 +30,8 @@ export interface GameStateResponse {
   players: Record<string, string>
   game_active: boolean
   room_image_url?: string
+  room_image_width?: number
+  room_image_height?: number
   room_name?: string
   room_description?: string
   room_lore?: string
@@ -97,6 +99,18 @@ export function getLoreAudioUrl(gameId: string): string {
   return gameUrl(gameId) + '/lore/audio'
 }
 
+/**
+ * POST /api/games/{game_id}/time_up – notify backend that timer reached 0. Ends game and notifies group.
+ */
+export async function reportTimeUp(gameId: string): Promise<{ ok: boolean; message: string }> {
+  const res = await fetch(gameUrl(gameId) + '/time_up', { method: 'POST' })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw { status: res.status, detail: body?.detail ?? res.statusText } as ApiError
+  }
+  return res.json()
+}
+
 /** Base URL for API (no path). Used to derive WebSocket URL. */
 function apiBaseOrigin(): string {
   const base = import.meta.env.VITE_API_URL ?? ''
@@ -128,4 +142,8 @@ export interface PuzzleSolvedEvent {
   item_label: string
   answer: string
   solver_name?: string
+}
+
+export interface GameOverEvent {
+  event: 'game_over'
 }
