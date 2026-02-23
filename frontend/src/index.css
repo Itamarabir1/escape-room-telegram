@@ -128,7 +128,7 @@ button {
   color: var(--tg-hint);
 }
 
-/* חדר בריחה – גלילה אופקית, תחושת חדר */
+/* חדר בריחה – גלילה אופקית, תחושת חדר. direction: ltr כדי ש-scrollLeft = מרכז עובד */
 .room-wrapper {
   width: 100vw;
   height: 100vh;
@@ -138,6 +138,7 @@ button {
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
+  direction: ltr;
 }
 
 .room-wrapper::-webkit-scrollbar {
@@ -184,6 +185,27 @@ button {
 
 .room-hotspot:hover .room-hotspot-label {
   visibility: visible;
+}
+
+/* SVG hotspots – ממוקמים בדיוק על התמונה (1280×768) */
+.room-hotspots-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.room-hotspots-svg .room-hotspot-shape {
+  pointer-events: auto;
+  cursor: pointer;
+  transition: fill 0.2s;
+}
+
+.room-hotspots-svg .room-hotspot-shape:hover,
+.room-hotspots-svg .room-hotspot-shape:focus-visible {
+  fill: rgba(255, 200, 0, 0.35);
 }
 
 /* Wrapper so room can be scrolled horizontally on phone (panorama) */

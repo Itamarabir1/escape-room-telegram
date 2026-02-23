@@ -51,6 +51,17 @@ function getPuzzleByItemId(room: GameStateResponse | null, itemId: string): Puzz
 
 const INITIAL_TIMER_SECONDS = 3600 // 01:00:00
 
+/** Hotspot shapes for room image 1280×768 – polygon points and circle (cx, cy, r) */
+const ROOM_HOTSPOT_SHAPES: Array<
+  | { itemId: string; type: 'polygon'; points: string }
+  | { itemId: string; type: 'circle'; cx: number; cy: number; r: number }
+> = [
+  { itemId: 'door', type: 'polygon', points: '753,289 889,291 891,427 853,470 849,555 755,557' },
+  { itemId: 'safe_1', type: 'polygon', points: '965,523 1131,527 1187,543 1184,650 965,651' },
+  { itemId: 'clock_1', type: 'circle', cx: 649, cy: 248, r: 41 },
+  { itemId: 'board_servers', type: 'polygon', points: '7,38 351,236 346,560 146,653 1,653' },
+]
+
 function formatTimer(seconds: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
@@ -73,6 +84,7 @@ export default function GamePage() {
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_TIMER_SECONDS)
   const [gameOver, setGameOver] = useState(false)
   const panoramaRef = useRef<HTMLDivElement>(null)
+  const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const lorePlayedRef = useRef(false)
   const timerStartedRef = useRef(false)
   const timeUpSentRef = useRef(false)
@@ -109,6 +121,7 @@ export default function GamePage() {
       return
     }
     setRoomLoading(true)
+    setRoomImageLoaded(false)
     lorePlayedRef.current = false
     getGameState(gameId)
       .then((data) => {
@@ -201,18 +214,30 @@ export default function GamePage() {
   }, [gameId, room])
 
   const onRoomImageLoad = useCallback(() => {
-    const wrap = panoramaRef.current
-    if (!wrap) return
-    const centerScroll = () => {
-      if (!panoramaRef.current) return
-      const w = panoramaRef.current
-      const maxScroll = w.scrollWidth - w.clientWidth
-      w.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
-    }
-    requestAnimationFrame(() => requestAnimationFrame(centerScroll))
-    setTimeout(centerScroll, 150)
+    setRoomImageLoaded(true)
     if (gameId && room?.room_lore) playLoreAudio(gameId)
   }, [gameId, room?.room_lore, playLoreAudio])
+
+  useEffect(() => {
+    const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
+    if (!hasRoomImage || !roomImageLoaded) return
+    const container = panoramaRef.current
+    if (!container) return
+    const centerScroll = () => {
+      const el = panoramaRef.current
+      if (!el) return
+      const maxScroll = el.scrollWidth - el.clientWidth
+      el.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
+    }
+    centerScroll()
+    requestAnimationFrame(() => requestAnimationFrame(centerScroll))
+    const t1 = setTimeout(centerScroll, 100)
+    const t2 = setTimeout(centerScroll, 400)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [room?.room_image_url, room?.room_items?.length, roomImageLoaded])
 
   const openTask = useCallback((item: RoomItemResponse) => {
     setSelectedItem(item)
@@ -300,32 +325,52 @@ export default function GamePage() {
                   alt="חדר בריחה"
                   onLoad={onRoomImageLoad}
                 />
-                {roomItems.map((it) => {
-                  const imgW = room?.room_image_width ?? DEMO_ROOM_WIDTH
-                  const imgH = room?.room_image_height ?? DEMO_ROOM_HEIGHT
-                  const leftPct = (it.x / imgW) * 100
-                  const topPct = (it.y / imgH) * 100
-                  const hotspotW = 14
-                  const hotspotH = 18
-                  return (
-                    <button
-                      key={it.id}
-                      type="button"
-                      className="room-hotspot"
-                      style={{
-                        left: `${leftPct}%`,
-                        top: `${topPct}%`,
-                        width: `${hotspotW}%`,
-                        height: `${hotspotH}%`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                      onClick={() => openTask(it)}
-                      title={it.label}
-                    >
-                      <span className="room-hotspot-label">{it.label}</span>
-                    </button>
-                  )
-                })}
+                <svg
+                  className="room-hotspots-svg"
+                  viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
+                  preserveAspectRatio="xMidYMid meet"
+                  aria-hidden
+                >
+                  {ROOM_HOTSPOT_SHAPES.map((shape) => {
+                    const item = roomItems.find((it) => it.id === shape.itemId)
+                    if (!item) return null
+                    const handleClick = () => openTask(item)
+                    if (shape.type === 'polygon') {
+                      return (
+                        <polygon
+                          key={shape.itemId}
+                          points={shape.points}
+                          fill="rgba(255,200,0,0.15)"
+                          stroke="rgba(255,200,0,0.6)"
+                          strokeWidth={2}
+                          className="room-hotspot-shape"
+                          onClick={handleClick}
+                          onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={item.label}
+                        />
+                      )
+                    }
+                    return (
+                      <circle
+                        key={shape.itemId}
+                        cx={shape.cx}
+                        cy={shape.cy}
+                        r={shape.r}
+                        fill="rgba(255,200,0,0.15)"
+                        stroke="rgba(255,200,0,0.6)"
+                        strokeWidth={2}
+                        className="room-hotspot-shape"
+                        onClick={handleClick}
+                        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={item.label}
+                      />
+                    )
+                  })}
+                </svg>
               </div>
             </div>
           ) : (
