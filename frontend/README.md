@@ -21,3 +21,10 @@
 
 1. `cd frontend && npm run build`
 2. הפעלת הבקאנד — הוא יגיש את `frontend/dist` ב-`/static` וב-`/game`.
+
+
+
+ג
+
+
+ג
