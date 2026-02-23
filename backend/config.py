@@ -24,7 +24,7 @@ class Config:
     GEMINI_IMAGE_MODEL: str = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")  # image generation (Gemini Imagen / "ננו באננה")
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
     HF_FLUX_MODEL: str = os.getenv("HF_FLUX_MODEL", "black-forest-labs/FLUX.1-schnell")  # or FLUX.1-dev for higher quality (slower)
-    ELEVEN_API_KEY: str = os.getenv("ELEVEN_API_KEY", "")
+    ELEVEN_API_KEY: str = os.getenv("ELEVEN_API_KEY") or os.getenv("ELEVENLABS_API_KEY", "")
 
     # AWS Settings
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")

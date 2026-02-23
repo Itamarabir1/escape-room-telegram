@@ -108,11 +108,28 @@ export default function GamePage() {
     fetch(getLoreAudioUrl(gid))
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
-        if (!blob) return
-        const audio = new Audio(URL.createObjectURL(blob))
-        audio.play()
+        if (!blob) {
+          lorePlayedRef.current = false
+          return
+        }
+        const url = URL.createObjectURL(blob)
+        const audio = new Audio(url)
+        const cleanup = () => URL.revokeObjectURL(url)
+        audio.play().then(cleanup).catch(() => {
+          cleanup()
+          lorePlayedRef.current = false
+          const tryAgain = () => {
+            document.removeEventListener('click', tryAgain)
+            document.removeEventListener('touchstart', tryAgain)
+            playLoreAudio(gid)
+          }
+          document.addEventListener('click', tryAgain, { once: true })
+          document.addEventListener('touchstart', tryAgain, { once: true })
+        })
       })
-      .catch(() => {})
+      .catch(() => {
+        lorePlayedRef.current = false
+      })
   }, [])
 
   useEffect(() => {
@@ -138,9 +155,11 @@ export default function GamePage() {
   }, [gameId, showStatus])
 
   useEffect(() => {
-    if (!gameId || !room?.room_lore || roomLoading || room?.room_image_url) return
+    if (!gameId || !room?.room_lore || roomLoading) return
+    const hasImage = Boolean(room?.room_image_url)
+    if (hasImage && !roomImageLoaded) return
     playLoreAudio(gameId)
-  }, [gameId, room?.room_lore, room?.room_image_url, roomLoading, playLoreAudio])
+  }, [gameId, room?.room_lore, room?.room_image_url, roomLoading, roomImageLoaded, playLoreAudio])
 
   useEffect(() => {
     const hasRoomImage = !roomLoading && (room?.room_items?.length ?? 0) > 0 && Boolean(room?.room_image_url)
@@ -215,8 +234,7 @@ export default function GamePage() {
 
   const onRoomImageLoad = useCallback(() => {
     setRoomImageLoaded(true)
-    if (gameId && room?.room_lore) playLoreAudio(gameId)
-  }, [gameId, room?.room_lore, playLoreAudio])
+  }, [])
 
   useEffect(() => {
     const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
