@@ -36,7 +36,9 @@ GAME_NOT_FOUND_DETAIL = "משחק לא נמצא או שהסתיים."
 
 
 def _apply_demo_room(game: dict) -> None:
-    """Inject demo room items and puzzles (no image). State is saved to Redis."""
+    """Inject demo room items, puzzles, and static room image URL. State is saved to Redis."""
+    base = config.base_url().rstrip("/")
+    game["room_image_url"] = f"{base}/room/escape_room.png"
     game["room_name"] = DEMO_ROOM_META["room_name"]
     game["room_description"] = DEMO_ROOM_META["room_description"]
     game["room_lore"] = DEMO_ROOM_META.get("room_lore", "")
@@ -59,8 +61,6 @@ async def get_game_state(game_id: str) -> GameStateResponse:
         or len(game.get("room_items") or []) < len(DEMO_ROOM_ITEMS)
     )
     if needs_demo:
-        if game.get("room_image_url"):
-            game["room_image_url"] = ""  # avoid black/broken image when fixing incomplete items
         _apply_demo_room(game)
         save_game(game_id, game)
         logger.info("Room applied for game_id=%s (items + positions, no image)", game_id)

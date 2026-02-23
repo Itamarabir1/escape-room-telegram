@@ -83,13 +83,35 @@ git push
 - **כתובת:** `https://escape-room-telegram.onrender.com/health`  
   (אם שם השירות שלך ב-Render שונה – החלף את `escape-room-telegram` בשם השירות שלך.)
 - **שיטה:** GET (ללא auth).
-- **Timeout:** אחרי spin down הבקשה הראשונה יכולה לקחת עד ~50 שניות – ב-Cron-job.org הגדר timeout של **לפחות 60 שניות**.
+- **Timeout:** **חשוב:** אחרי שינה הבקשה הראשונה לוקחת 30–60 שניות. ב-Cron-job.org בהגדרות ה-job הגדר **Timeout 90 שניות** (או לפחות 60). בלי זה הבקשה נכשלת והשרת לא מתעורר.
+- **תדירות:** כל 14 דקות (או 10) – חייב לפני 15 דקות ללא תנועה.
+
+---
+
+## עדכון פרונט (תמונה, טיימר, כפתורים וכו')
+
+**אם שינית קוד בפרונט (frontend) והלינק מטלגרם עדיין מציג גרסה ישנה:**
+
+1. בנה מחדש את הפרונט:
+   ```bash
+   cd frontend
+   npm run build
+   cd ..
+   ```
+2. הוסף את התוצאה ל-Git והעלה:
+   ```bash
+   git add frontend/dist
+   git commit -m "build: frontend update (room image, timer, etc.)"
+   git push
+   ```
+3. ב-Render יופעל Redeploy אוטומטי. אחרי סיום, פתח את הלינק מטלגרם מחדש (או רענן קשיח / פתח בחלון פרטי) כדי לראות את הגרסה החדשה.
 
 ---
 
 ## אם משהו לא עובד
 
 - **דף /game מחזיר JSON "קובץ המשחק לא נמצא":** הרץ שוב את שלב 1 (בניית פרונט + `git add frontend/dist` + commit + push) ו-Redeploy ב-Render.
+- **הלינק מטלגרם מציג גרסה ישנה (בלי תמונה, עם כפתורים ישנים):** הרץ "עדכון פרונט" למעלה – בניית frontend, commit ל־frontend/dist ו-push. וודא שב-Cron-job.org ה-Timeout הוא 90 שניות.
 - **הבוט לא מגיב:** וודא ש־`TELEGRAM_TOKEN` נכון ו־`WEBAPP_URL` מוגדר (כתובת ה-Render **בלי** סלאש). אחרי שינוי ב-Environment Render עושה Redeploy.
 - **"משחק לא נמצא" כשפותחים לינק:** וודא ש־Redis רץ (אם הוספת Redis ב-Render – `REDIS_URL` מוגדר). בלי Redis המשחקים נשמרים רק בזיכרון ויכולים להיעלם אחרי sleep.
-- **השרת נרדם:** וודא ש-Cron-job.org קורא ל־`/health` **כל 14 דקות** (כתובת מלאה למשל `https://escape-room-telegram.onrender.com/health`), ו-timeout 60+ שניות.
+- **השרת נרדם:** וודא ש-Cron-job.org קורא ל־`/health` **כל 14 דקות**, כתובת מלאה, ו-**Timeout 90 שניות** (בהגדרות ה-job).

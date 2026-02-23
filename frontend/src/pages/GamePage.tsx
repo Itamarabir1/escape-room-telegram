@@ -48,6 +48,15 @@ function getPuzzleByItemId(room: GameStateResponse | null, itemId: string): Puzz
   return getPuzzles(room).find((p) => p.item_id === itemId)
 }
 
+const INITIAL_TIMER_SECONDS = 3600 // 01:00:00
+
+function formatTimer(seconds: number): string {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':')
+}
+
 export default function GamePage() {
   const [gameId, setGameId] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('')
@@ -60,8 +69,10 @@ export default function GamePage() {
   const [actionMessage, setActionMessage] = useState<{ text: string; isSuccess: boolean } | null>(null)
   const [actionSubmitting, setActionSubmitting] = useState(false)
   const [puzzleSolvedNotification, setPuzzleSolvedNotification] = useState<string | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(INITIAL_TIMER_SECONDS)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const lorePlayedRef = useRef(false)
+  const timerStartedRef = useRef(false)
 
   const tg = getTelegramWebApp()
   if (tg.expand) tg.expand()
@@ -115,6 +126,35 @@ export default function GamePage() {
       playLoreAudio(gameId)
     }
   }, [gameId, room?.room_lore, roomLoading, playLoreAudio])
+
+  useEffect(() => {
+    const hasRoomImage = !roomLoading && (room?.room_items?.length ?? 0) > 0 && Boolean(room?.room_image_url)
+    if (hasRoomImage) document.body.classList.add('game-has-room')
+    return () => document.body.classList.remove('game-has-room')
+  }, [roomLoading, room?.room_items?.length, room?.room_image_url])
+
+  const showTimer = (room?.room_items?.length ?? 0) > 0 && !roomLoading
+  useEffect(() => {
+    if (!showTimer) return
+    if (!timerStartedRef.current) {
+      timerStartedRef.current = true
+      setSecondsLeft(INITIAL_TIMER_SECONDS)
+    }
+    const id = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(id)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [showTimer])
+
+  useEffect(() => {
+    if (!showTimer) timerStartedRef.current = false
+  }, [showTimer])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -196,6 +236,11 @@ export default function GamePage() {
 
   return (
     <div className="game-container">
+      {showTimer && (
+        <div className="room-timer" aria-live="polite">
+          {formatTimer(secondsLeft)}
+        </div>
+      )}
       {puzzleSolvedNotification && (
         <div className="puzzle-solved-banner" role="alert">
           {puzzleSolvedNotification}
@@ -215,10 +260,13 @@ export default function GamePage() {
             </p>
           )}
           {hasImage ? (
-            <div className="room-panorama-wrap" ref={panoramaRef}>
-              <div className="room-panorama-inner">
-                <img src={room!.room_image_url} alt="חדר בריחה" onLoad={onRoomImageLoad} />
-              </div>
+            <div className="room-wrapper" ref={panoramaRef}>
+              <img
+                src={room!.room_image_url}
+                className="room-image"
+                alt="חדר בריחה"
+                onLoad={onRoomImageLoad}
+              />
             </div>
           ) : (
             <div className="room-placeholder-wrap">

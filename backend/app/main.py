@@ -6,6 +6,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from telegram import Update
 
@@ -20,13 +21,28 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telegram Bot - חדר בריחה")
 
-# Frontend build output only (no source). telegram-bot/frontend/dist; backend at telegram-bot/backend/
+# Repo root: telegram-bot/; backend at telegram-bot/backend/
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+IMAGES_DIR = _REPO_ROOT / "images"
 FRONTEND_DIST = _REPO_ROOT / "frontend" / "dist"
+
 if FRONTEND_DIST.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIST)), name="static")
 else:
     logger.warning("frontend/dist not found; run 'cd frontend && npm run build'. /static and /game will not serve frontend.")
+
+
+@app.get("/room/escape_room.png")
+async def serve_room_image():
+    """Serves the static room image from project images folder (escape_room.png)."""
+    path = IMAGES_DIR / "escape_room.png"
+    if not path.exists():
+        candidates = sorted(IMAGES_DIR.glob("escape_room_*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+        path = candidates[0] if candidates else None
+    if not path or not path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Room image not found. Add images/escape_room.png")
+    return FileResponse(path, media_type="image/png")
 
 app.include_router(games_router, prefix="/api")
 app.include_router(ws_game_router, prefix="/ws")

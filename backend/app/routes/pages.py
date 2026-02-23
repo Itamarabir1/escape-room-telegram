@@ -11,10 +11,13 @@ INDEX_HTML = FRONTEND_DIST / "index.html"
 
 router = APIRouter(tags=["pages"])
 
+# מונע cache של דף המשחק – עדכון פרונט ייטען מיד
+GAME_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate"}
+
 
 @router.get("/game")
 async def get_game():
     """Serves the game Web App (HTML) from frontend/dist. Build first: cd frontend && npm run build."""
     if not INDEX_HTML.exists():
         return {"detail": "קובץ המשחק לא נמצא. הרץ קודם: cd frontend && npm run build."}
-    return FileResponse(INDEX_HTML)
+    return FileResponse(INDEX_HTML, headers=GAME_HEADERS)
