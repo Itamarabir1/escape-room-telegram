@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getGameState,
+  getGameWebSocketUrl,
   getLoreAudioUrl,
   sendGameAction,
   type ApiError,
   type GameStateResponse,
+  type PuzzleSolvedEvent,
   type PuzzleResponse,
   type RoomItemResponse,
   DEMO_ROOM_WIDTH,
@@ -57,6 +59,7 @@ export default function GamePage() {
   const [unlockAnswer, setUnlockAnswer] = useState('')
   const [actionMessage, setActionMessage] = useState<{ text: string; isSuccess: boolean } | null>(null)
   const [actionSubmitting, setActionSubmitting] = useState(false)
+  const [puzzleSolvedNotification, setPuzzleSolvedNotification] = useState<string | null>(null)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const lorePlayedRef = useRef(false)
 
@@ -113,6 +116,34 @@ export default function GamePage() {
     }
   }, [gameId, room?.room_lore, roomLoading, playLoreAudio])
 
+  const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!gameId || !room) return
+    const url = getGameWebSocketUrl(gameId)
+    const ws = new WebSocket(url)
+    ws.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data) as PuzzleSolvedEvent
+        if (data.event !== 'puzzle_solved') return
+        const text = data.solver_name
+          ? `${data.solver_name} פתח/ה את ${data.item_label}. הפתרון: ${data.answer}`
+          : `${data.item_label} נפתח/ה. הפתרון: ${data.answer}`
+        if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
+        setPuzzleSolvedNotification(text)
+        puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
+      } catch {
+        // ignore non-JSON or unknown shape
+      }
+    }
+    return () => {
+      ws.close()
+      if (puzzleSolvedTimeoutRef.current) {
+        clearTimeout(puzzleSolvedTimeoutRef.current)
+        puzzleSolvedTimeoutRef.current = null
+      }
+    }
+  }, [gameId, room])
+
   const onRoomImageLoad = useCallback(() => {
     const wrap = panoramaRef.current
     if (wrap) wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2
@@ -138,7 +169,12 @@ export default function GamePage() {
     if (!puzzle || puzzle.type !== 'unlock' || !unlockAnswer.trim()) return
     setActionSubmitting(true)
     setActionMessage(null)
-    sendGameAction(gameId, { item_id: selectedItem.id, answer: unlockAnswer.trim() })
+    const solverName = getTelegramWebApp().initDataUnsafe?.user?.first_name ?? undefined
+    sendGameAction(gameId, {
+      item_id: selectedItem.id,
+      answer: unlockAnswer.trim(),
+      ...(solverName ? { solver_name: solverName } : {}),
+    })
       .then((res) => {
         setActionMessage({
           text: res.message ?? (res.correct ? 'הכספת נפתחה!' : 'סיסמה שגויה.'),
@@ -160,6 +196,11 @@ export default function GamePage() {
 
   return (
     <div className="game-container">
+      {puzzleSolvedNotification && (
+        <div className="puzzle-solved-banner" role="alert">
+          {puzzleSolvedNotification}
+        </div>
+      )}
       {roomLoading && <p className="room-loading">טוען…</p>}
       {status && (
         <p className={statusError ? 'error' : 'status'} id="game-status">

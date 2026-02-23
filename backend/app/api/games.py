@@ -19,6 +19,7 @@ from data.demo_room import (
 )
 from domain.game import GameStateResponse, PuzzleResponse
 from services.game_session import get_game_by_id, save_game
+from services.ws_registry import broadcast_puzzle_solved
 from utils.puzzle import (
     SAFE_BACKSTORY,
     PROMPT_TEXT,
@@ -119,6 +120,14 @@ async def get_lore_audio(game_id: str) -> Response:
     return Response(content=audio_bytes, media_type="audio/mpeg")
 
 
+def _item_label(game: dict, item_id: str) -> str:
+    """Get display label for room item; fallback to item_id."""
+    for it in game.get("room_items") or []:
+        if it.get("id") == item_id:
+            return (it.get("label") or item_id).strip()
+    return item_id
+
+
 @router.post("/{game_id}/action")
 async def game_action(game_id: str, payload: dict = Body(default_factory=dict)):
     """Submit a player action (unlock puzzle answer). Validation is server-side; correct answer from Redis (game state)."""
@@ -127,6 +136,7 @@ async def game_action(game_id: str, payload: dict = Body(default_factory=dict)):
         raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
     item_id = (payload.get("item_id") or "").strip()
     answer = (payload.get("answer") or "").strip()
+    solver_name = (payload.get("solver_name") or "").strip() or None
     puzzles = game.get("room_puzzles") or {}
     if not item_id or item_id not in puzzles:
         raise HTTPException(status_code=400, detail="פריט או חידה לא נמצאו.")
@@ -136,4 +146,13 @@ async def game_action(game_id: str, payload: dict = Body(default_factory=dict)):
     correct_answer = (p.get("correct_answer") or "").strip()
     is_correct = normalize_answer(answer) == normalize_answer(correct_answer)
     message = SUCCESS_MESSAGE if is_correct else WRONG_MESSAGE
+    if is_correct:
+        item_label = _item_label(game, item_id)
+        await broadcast_puzzle_solved(
+            game_id,
+            item_id=item_id,
+            item_label=item_label,
+            answer=correct_answer,
+            solver_name=solver_name,
+        )
     return {"ok": True, "game_id": game_id, "correct": is_correct, "message": message}

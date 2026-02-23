@@ -11,6 +11,7 @@ from telegram import Update
 
 from config import config
 from app.api.games import router as games_router
+from app.api.ws_game import router as ws_game_router
 from app.routes.pages import router as pages_router
 from app.routes.health import router as health_router
 from app.bot.app import create_telegram_app, run_telegram
@@ -28,6 +29,7 @@ else:
     logger.warning("frontend/dist not found; run 'cd frontend && npm run build'. /static and /game will not serve frontend.")
 
 app.include_router(games_router, prefix="/api")
+app.include_router(ws_game_router, prefix="/ws")
 app.include_router(pages_router)
 app.include_router(health_router)
 

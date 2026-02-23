@@ -96,3 +96,36 @@ export async function sendGameAction(
 export function getLoreAudioUrl(gameId: string): string {
   return gameUrl(gameId) + '/lore/audio'
 }
+
+/** Base URL for API (no path). Used to derive WebSocket URL. */
+function apiBaseOrigin(): string {
+  const base = import.meta.env.VITE_API_URL ?? ''
+  if (base) {
+    try {
+      const u = new URL(base)
+      return u.origin
+    } catch {
+      return window.location.origin
+    }
+  }
+  return window.location.origin
+}
+
+/**
+ * WebSocket URL for real-time game events (e.g. puzzle_solved).
+ * ws:// in dev, wss:// when origin is https.
+ */
+export function getGameWebSocketUrl(gameId: string): string {
+  const origin = apiBaseOrigin()
+  const wsScheme = origin.startsWith('https') ? 'wss' : 'ws'
+  const host = origin.replace(/^https?:\/\//, '')
+  return `${wsScheme}://${host}/ws/games/${encodeURIComponent(gameId)}`
+}
+
+export interface PuzzleSolvedEvent {
+  event: 'puzzle_solved'
+  item_id: string
+  item_label: string
+  answer: string
+  solver_name?: string
+}
