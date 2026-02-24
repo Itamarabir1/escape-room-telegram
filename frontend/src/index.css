@@ -79,6 +79,15 @@ body.game-has-room .room-situation {
   color: #fff;
 }
 
+/* הפסקה מתחת לכפתור "התחל" חייבת להישאר בזרימת ה-flex – לא absolute */
+body.game-has-room .room-situation.room-situation-below-btn {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  z-index: auto;
+}
+
 /* טיימר ספירה לאחור – תמיד צד שמאל למעלה גם בגלילה */
 .room-timer {
   position: fixed;
