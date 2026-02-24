@@ -15,19 +15,31 @@ from services.game_session import (
     get_game_by_id,
 )
 from services.player_repository import register_player as register_player_db
+from services.group_repository import upsert_group, get_top10_groups, set_finished_at
 from utils.urls import game_page_url
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
 # --- Helpers: send game link as button or plain text ---
 
 
-async def send_game_button_or_link(message, game_id: str, intro: str) -> None:
-    """Sends Web App button; on Button_type_invalid falls back to plain link."""
+def _game_keyboard(game_id: str) -> InlineKeyboardMarkup:
+    """Web App button + Top 10 leaderboard button."""
     url = game_page_url(game_id)
-    keyboard = [[InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=url))]]
+    keyboard = [
+        [InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=url))],
+        [InlineKeyboardButton("🏆 10 הטובים ביותר", callback_data="top10")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def send_game_button_or_link(message, game_id: str, intro: str) -> None:
+    """Sends Web App button and Top 10 button; on Button_type_invalid falls back to plain link."""
+    url = game_page_url(game_id)
+    keyboard = _game_keyboard(game_id)
     try:
-        await message.reply_text(intro, reply_markup=InlineKeyboardMarkup(keyboard))
+        await message.reply_text(intro, reply_markup=keyboard)
     except BadRequest as e:
         err_msg = getattr(e, "message", None) or str(e)
         if "button" in err_msg.lower():
@@ -121,28 +133,30 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     show_alert=True,
                 )
             return
-        try:
-            chat_id = update.effective_chat.id if update.effective_chat else 0
-            game_id = finish_registration(chat_id, chat_data)
-            await query.answer()
-            await send_game_button_or_link(
-                query.message, game_id,
-                "🎲 ההרשמה נסגרה!\n\nלחץ על הכפתור \"שחק עכשיו\" למטה – ייפתח דף המשחק בדפדפן.",
-            )
-        except BadRequest as e:
-            logger.exception("Telegram BadRequest in start_ai_story: %s", getattr(e, "message", str(e)))
-            try:
-                await query.answer("שגיאה מהטלגרם. נסה /end_game ואז /start_game.", show_alert=True)
-            except Exception:
-                pass
-            await send_fallback_game_link(query, chat_data)
-        except Exception as e:
-            logger.exception("Error in start_ai_story: %s", e)
-            try:
-                await query.answer("אירעה שגיאה. נסה שוב או /end_game ואז /start_game.", show_alert=True)
-            except Exception:
-                pass
-            await send_fallback_game_link(query, chat_data)
+        # Ask only the user who clicked for the group name, then we'll finish registration
+        chat_id = update.effective_chat.id if update.effective_chat else 0
+        chat_data["awaiting_group_name"] = user.id
+        await query.answer()
+        name = user.first_name or "חבר/ה בקבוצה"
+        await query.message.reply_text(
+            f"👋 {name}, מה השם של הקבוצה? כתוב כאן בקבוצה (רק אתה צריך לענות)."
+        )
+        return
+
+    elif query.data == "top10":
+        top = get_top10_groups()
+        if not top:
+            await query.answer("עדיין אין תוצאות. היו הראשונים לסיים! 🏆", show_alert=True)
+            return
+        lines = ["🏆 **10 הטובים ביותר**\n"]
+        for i, row in enumerate(top, 1):
+            name = (row["group_name"] or "קבוצה").replace("*", "•")
+            sec = row.get("duration_seconds") or 0
+            m, s = divmod(sec, 60)
+            time_str = f"{m} דק׳ {s} שניות" if m else f"{s} שניות"
+            lines.append(f"{i}. **{name}** — {time_str}")
+        await query.answer()
+        await query.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
     elif query.data == "ignore_welcome":
         await query.answer()
@@ -166,7 +180,39 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def handle_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    """Handle group name reply after 'כולם פה' – only the user who clicked should answer."""
+    chat_data = context.chat_data
+    awaiting = chat_data.get("awaiting_group_name")
+    if awaiting is None:
+        return
+    user = update.message.from_user
+    if not user or user.id != awaiting:
+        return
+    group_name = (update.message.text or "").strip()
+    if not group_name:
+        await update.message.reply_text("נא לכתוב שם קבוצה (טקסט קצר).")
+        return
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    del chat_data["awaiting_group_name"]
+    now = datetime.now(timezone.utc)
+    upsert_group(chat_id, group_name=group_name, started_at=now)
+    try:
+        game_id = finish_registration(chat_id, chat_data)
+        safe_name = group_name.replace("*", "•").replace("_", "\\_")[:80]
+        await update.message.reply_text(
+            f"✅ שם הקבוצה נשמר: **{safe_name}**\n\n"
+            "🎲 ההרשמה נסגרה! לחץ על הכפתור \"שחק עכשיו\" למטה – ייפתח דף המשחק בדפדפן.",
+            reply_markup=_game_keyboard(game_id),
+            parse_mode="Markdown",
+        )
+    except BadRequest as e:
+        err_msg = getattr(e, "message", None) or str(e)
+        if "button" in err_msg.lower():
+            await update.message.reply_text(
+                f"שם הקבוצה נשמר. פתח את המשחק: {game_page_url(chat_data.get('game_id', ''))}"
+            )
+        else:
+            raise
 
 
 async def end_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -174,6 +220,9 @@ async def end_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_game_active(chat_data):
         await update.message.reply_text("אין משחק פעיל כרגע שאפשר לסיים! 😊")
         return
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    if chat_id is not None:
+        set_finished_at(chat_id)
     end_game_chat(chat_data)
     await update.message.reply_text(
         "🏆 **המשחק הסתיים!**\n"

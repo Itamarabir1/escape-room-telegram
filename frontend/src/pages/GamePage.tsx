@@ -56,10 +56,10 @@ const ROOM_HOTSPOT_SHAPES: Array<
   | { itemId: string; type: 'polygon'; points: string }
   | { itemId: string; type: 'circle'; cx: number; cy: number; r: number }
 > = [
-  { itemId: 'door', type: 'polygon', points: '753,289 890,292 890,475 850,475 850,555 755,557' },
-  { itemId: 'safe_1', type: 'polygon', points: '990,706 1185,706 1185,722 990,722' },
+  { itemId: 'door', type: 'polygon', points: '753,289 889,291 891,427 853,470 849,555 755,557' },
+  { itemId: 'safe_1', type: 'polygon', points: '965,523 1131,527 1187,543 1184,650 965,651' },
   { itemId: 'clock_1', type: 'circle', cx: 649, cy: 248, r: 41 },
-  { itemId: 'board_servers', type: 'polygon', points: '1,349 222,349 222,560 1,560' },
+  { itemId: 'board_servers', type: 'polygon', points: '7,38 351,236 346,560 1,653' },
 ]
 
 function formatTimer(seconds: number): string {
@@ -85,7 +85,6 @@ export default function GamePage() {
   const [gameOver, setGameOver] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
   const [startUIVisible, setStartUIVisible] = useState(true)
-  const [doorVideoOpen, setDoorVideoOpen] = useState(false)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const lorePlayedRef = useRef(false)
@@ -283,10 +282,6 @@ export default function GamePage() {
     setActionMessage(null)
   }, [])
 
-  const closeDoorVideo = useCallback(() => {
-    setDoorVideoOpen(false)
-  }, [])
-
   const submitUnlockAnswer = useCallback(() => {
     if (!gameId || !selectedItem) return
     const puzzle = getPuzzleByItemId(room, selectedItem.id)
@@ -317,8 +312,6 @@ export default function GamePage() {
   const selectedPuzzle = selectedItem ? getPuzzleByItemId(room, selectedItem.id) : null
   const hasImage = Boolean(room?.room_image_url)
   const situationText = room?.room_lore || room?.room_description || ''
-  const doorVideoUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/room/door_open.mp4` : ''
 
   return (
     <div className="game-container">
@@ -327,25 +320,6 @@ export default function GamePage() {
           <h2 className="game-over-title">Game Over</h2>
           <p className="game-over-text">הזמן נגמר. המשחק הסתיים.</p>
           <p className="game-over-hint">כתבו /start_game בקבוצה כדי להתחיל מחדש.</p>
-        </div>
-      )}
-      {doorVideoOpen && (
-        <div className="door-video-overlay" role="dialog" aria-label="סרטון פתיחת הדלת">
-          <video
-            src={doorVideoUrl}
-            className="door-video-player"
-            autoPlay
-            playsInline
-            onEnded={closeDoorVideo}
-          />
-          <button
-            type="button"
-            className="door-video-skip"
-            onClick={closeDoorVideo}
-            aria-label="דלג"
-          >
-            דלג
-          </button>
         </div>
       )}
       {showTimer && !gameOver && (
@@ -403,10 +377,6 @@ export default function GamePage() {
                     if (!item) return null
                     const handleClick = () => {
                       if (!gameStarted) return
-                      if (item.id === 'door') {
-                        setDoorVideoOpen(true)
-                        return
-                      }
                       openTask(item)
                     }
                     if (shape.type === 'polygon') {
@@ -460,11 +430,7 @@ export default function GamePage() {
                     type="button"
                     className="room-item-hotspot"
                     style={{ left: it.x, top: it.y }}
-                    onClick={() => {
-                      if (!gameStarted) return
-                      if (it.id === 'door') setDoorVideoOpen(true)
-                      else openTask(it)
-                    }}
+                    onClick={() => gameStarted && openTask(it)}
                     title={it.label}
                     disabled={!gameStarted}
                   >

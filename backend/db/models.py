@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -49,6 +49,24 @@ class Room(Base):
         "Player", back_populates="current_room", foreign_keys="Player.current_room_id"
     )
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="room", cascade="all, delete-orphan")
+
+
+# ---------------------------------------------------------------------------
+# Groups (Telegram chat groups – group_id = chat_id)
+# ---------------------------------------------------------------------------
+class Group(Base):
+    __tablename__ = "Groups"
+
+    group_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    group_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    current_room_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("Rooms.room_id", ondelete="RESTRICT", onupdate="CASCADE"), default=1, nullable=True
+    )
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=True
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ from data.demo_room import (
 )
 from domain.game import GameStateResponse, PuzzleResponse
 from services.game_session import end_game_by_id, get_game_by_id, save_game
+from services.group_repository import set_finished_at
 from services.ws_registry import broadcast_game_over, broadcast_puzzle_solved
 from utils.puzzle import (
     SAFE_BACKSTORY,
@@ -59,6 +60,8 @@ async def game_time_up(game_id: str, request: Request) -> dict:
     if not game:
         raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
     chat_id = game.get("chat_id")
+    if chat_id is not None:
+        set_finished_at(int(chat_id))
     end_game_by_id(game_id)
     await broadcast_game_over(game_id)
     if chat_id is not None:
