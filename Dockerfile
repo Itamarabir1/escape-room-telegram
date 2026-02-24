@@ -1,21 +1,21 @@
 # Build from repo root: docker build -t escape-backend -f Dockerfile .
-# אותו UV + pyproject.toml כמו locally – בלי requirements.txt.
+# שורש הפרויקט במיכל = /app. הרצה כ-backend.app.main:app מ-WORKDIR /app.
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 
 WORKDIR /app
 
-# התקנת תלויות מ־pyproject.toml (ו־uv.lock אם קיים)
-COPY pyproject.toml uv.lock* ./
-COPY backend ./backend
+# 1. העתקת הגדרות תלויות בלבד (לניצול cache של דוקר)
+COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project || uv sync --no-dev --no-install-project
 
-# קבצי אפליקציה
+# 2. העתקת שאר קבצי האפליקציה בנתיבים המקוריים
+COPY backend ./backend
 COPY images ./images
 COPY frontend/dist ./frontend/dist
 
-ENV PYTHONPATH=/app/backend
-WORKDIR /app/backend
+# 3. PYTHONPATH: /app ל-backend.app.main, /app/backend ל-config ו-app
+ENV PYTHONPATH=/app:/app/backend
 EXPOSE 8000
 
-# הרצה עם UV כמו ב-local
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 4. הרצה משורש הפרויקט (/app) – אין WORKDIR /app/backend
+CMD ["uv", "run", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
