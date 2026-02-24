@@ -20,9 +20,10 @@ from data.demo_room import (
     DEMO_ROOM_WIDTH,
 )
 from domain.game import GameStateResponse, PuzzleResponse
+from domain.puzzle_status import PuzzleStatus
 from services.game_session import end_game_by_id, get_game_by_id, save_game
 from services.group_repository import set_finished_at
-from services.ws_registry import broadcast_game_over, broadcast_puzzle_solved
+from services.ws_registry import broadcast_door_opened, broadcast_game_over, broadcast_puzzle_solved
 from utils.puzzle import (
     SAFE_BACKSTORY,
     PROMPT_TEXT,
@@ -135,6 +136,11 @@ async def get_game_state(game_id: str) -> GameStateResponse:
         out["puzzles"] = puzzles_list
         if first_unlock:
             out["puzzle"] = first_unlock
+        room_solved = game.get("room_solved") or {}
+        out["solved_item_ids"] = [
+            iid for iid, status in room_solved.items()
+            if status == PuzzleStatus.SOLVED.value
+        ]
     return out
 
 
@@ -204,9 +210,16 @@ async def game_action(game_id: str, payload: dict = Body(default_factory=dict)):
     if (p.get("type") or "").lower() == "examine" or not p.get("correct_answer"):
         raise HTTPException(status_code=400, detail="משימה זו אינה דורשת שליחת תשובה.")
     correct_answer = (p.get("correct_answer") or "").strip()
-    is_correct = normalize_answer(answer) == normalize_answer(correct_answer)
+    aliases = p.get("correct_answer_aliases") or []
+    accepted = [correct_answer] + [str(a).strip() for a in aliases if a is not None and str(a).strip()]
+    normalized_user = normalize_answer(answer)
+    is_correct = any(normalize_answer(a) == normalized_user for a in accepted)
     message = SUCCESS_MESSAGE if is_correct else WRONG_MESSAGE
     if is_correct:
+        room_solved = game.get("room_solved") or {}
+        room_solved[item_id] = PuzzleStatus.SOLVED.value
+        game["room_solved"] = room_solved
+        save_game(game_id, game)
         item_label = _item_label(game, item_id)
         await broadcast_puzzle_solved(
             game_id,
@@ -216,3 +229,26 @@ async def game_action(game_id: str, payload: dict = Body(default_factory=dict)):
             solver_name=solver_name,
         )
     return {"ok": True, "game_id": game_id, "correct": is_correct, "message": message}
+
+
+def _all_unlock_puzzles_solved(game: dict) -> bool:
+    """True if every unlock puzzle in room_puzzles is marked SOLVED in room_solved."""
+    puzzles = game.get("room_puzzles") or {}
+    room_solved = game.get("room_solved") or {}
+    for item_id, p in puzzles.items():
+        if (p.get("type") or "").lower() == "unlock":
+            if room_solved.get(item_id) != PuzzleStatus.SOLVED.value:
+                return False
+    return True
+
+
+@router.post("/{game_id}/door_opened")
+async def door_opened(game_id: str) -> dict:
+    """Called when a player clicks the door after all puzzles are solved. Broadcasts door_opened to all clients so everyone plays the animation together."""
+    game = get_game_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    if not _all_unlock_puzzles_solved(game):
+        raise HTTPException(status_code=400, detail="עדיין לא פתרתם את כל החידות בחדר.")
+    await broadcast_door_opened(game_id)
+    return {"ok": True}

@@ -29,7 +29,7 @@ def _game_keyboard(game_id: str) -> InlineKeyboardMarkup:
     url = game_page_url(game_id)
     keyboard = [
         [InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=url))],
-        [InlineKeyboardButton("🏆 10 הטובים ביותר", callback_data="top10")],
+        [InlineKeyboardButton("🏆 עשרת הגדולים ביותר", callback_data="top10")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -70,7 +70,10 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await update.message.reply_text("המשחק כבר התחיל! אי אפשר להירשם שוב כרגע. ✋")
             return
     start_registration(chat_data)
-    keyboard = [[InlineKeyboardButton("אני רוצה לשחק! 🙋‍♂️", callback_data="join_game")]]
+    keyboard = [
+        [InlineKeyboardButton("אני רוצה לשחק! 🙋‍♂️", callback_data="join_game")],
+        [InlineKeyboardButton("🏆 עשרת הגדולים ביותר", callback_data="top10")],
+    ]
     sent = await update.message.reply_text(
         "🎮 **ההרפתקה מתחילה!**\n\nמי מצטרף אלינו היום? לחצו על הכפתור למטה כדי להירשם.",
         reply_markup=InlineKeyboardMarkup(keyboard),
@@ -148,13 +151,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if not top:
             await query.answer("עדיין אין תוצאות. היו הראשונים לסיים! 🏆", show_alert=True)
             return
-        lines = ["🏆 **10 הטובים ביותר**\n"]
+        medals = ("🥇", "🥈", "🥉") + ("4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟")
+        lines = ["🏆 *עשרת הגדולים ביותר* 🏆\n"]
         for i, row in enumerate(top, 1):
-            name = (row["group_name"] or "קבוצה").replace("*", "•")
+            name = (row["group_name"] or "קבוצה").replace("*", "•").replace("_", "\\_")
             sec = row.get("duration_seconds") or 0
             m, s = divmod(sec, 60)
             time_str = f"{m} דק׳ {s} שניות" if m else f"{s} שניות"
-            lines.append(f"{i}. **{name}** — {time_str}")
+            icon = medals[i - 1] if i <= len(medals) else f"{i}."
+            lines.append(f"{icon} *{name}*\n   ⏱ {time_str}")
         await query.answer()
         await query.message.reply_text("\n".join(lines), parse_mode="Markdown")
 

@@ -36,6 +36,7 @@ class GameStateResponse(TypedDict):
     room_items: NotRequired[list[RoomItemResponse]]
     puzzle: NotRequired[PuzzleResponse]  # deprecated: use puzzles
     puzzles: NotRequired[list[PuzzleResponse]]  # one per clickable item
+    solved_item_ids: NotRequired[list[str]]  # item_ids with PuzzleStatus.SOLVED in DB
 
 
 class HealthResponse(TypedDict):

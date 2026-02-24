@@ -38,6 +38,8 @@ export interface GameStateResponse {
   room_items?: RoomItemResponse[]
   puzzle?: PuzzleResponse
   puzzles?: PuzzleResponse[]
+  /** item_ids with solved status in DB (per group) */
+  solved_item_ids?: string[]
 }
 
 /** Room canvas size – larger than screen so user scrolls left/right (panorama) */
@@ -111,6 +113,18 @@ export async function reportTimeUp(gameId: string): Promise<{ ok: boolean; messa
   return res.json()
 }
 
+/**
+ * POST /api/games/{game_id}/door_opened – notify that door was clicked (all puzzles solved). Backend broadcasts door_opened so all clients play the animation together.
+ */
+export async function notifyDoorOpened(gameId: string): Promise<{ ok: boolean }> {
+  const res = await fetch(gameUrl(gameId) + '/door_opened', { method: 'POST' })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw { status: res.status, detail: body?.detail ?? res.statusText } as ApiError
+  }
+  return res.json()
+}
+
 /** Base URL for API (no path). Used to derive WebSocket URL. */
 function apiBaseOrigin(): string {
   const base = import.meta.env.VITE_API_URL ?? ''
@@ -146,4 +160,8 @@ export interface PuzzleSolvedEvent {
 
 export interface GameOverEvent {
   event: 'game_over'
+}
+
+export interface DoorOpenedEvent {
+  event: 'door_opened'
 }

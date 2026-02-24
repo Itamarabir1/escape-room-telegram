@@ -5,12 +5,14 @@ CAESAR_SHIFT = 3
 
 # Backstory for the safe (Hebrew). Shown in the modal.
 SAFE_BACKSTORY = (
-    "כספת חדר השרת התקול מוגנת בסיסמה שהמערכת יצרה. "
-    "במקום להקליד את הסיסמה ישר, עליכם לפענח את הצופן שבו היא מוצפנת. "
-    "אם תצליחו, הכספת תפתח ותגלו את הרמז שבתוכה."
+    "חידה 3: כספת חדר השרתים\n\n"
+    "הסיטואציה: חדר השרתים התקול ננעל! הכספת שבתוכו מכילה את רכיב הגיבוי הקריטי, "
+    "אך היא מוגנת בצופן שהמערכת יצרה באופן אוטומטי לפני הקריסה.\n\n"
+    "הקוד שהופיע על המסוף הוא: 78-72-92\n\n"
+    "המשימה: השתמשו בכוח ההיגיון כדי לפענח את הקשר בין המספרים ולהכניס את סיסמת הפריצה לכספת."
 )
 
-PROMPT_TEXT = "השתמשו בכוח ההגיון כדי לפענח את הסיסמה ולהכניס אותה בכספת."
+PROMPT_TEXT = "הכניסו את סיסמת הפריצה לכספת:"
 
 SUCCESS_MESSAGE = "הכספת נפתחה! הרמז שבתוכה מוביל לפריט הבא בחדר."
 WRONG_MESSAGE = "סיסמה שגויה, נסה שוב."
@@ -25,5 +27,5 @@ def caesar_encode(password: str, shift: int = CAESAR_SHIFT) -> str:
 
 
 def normalize_answer(answer: str) -> str:
-    """Strip and uppercase for comparison."""
-    return (answer or "").strip().upper()
+    """Strip and lowercase for comparison (e.g. KEY/key/Key → key)."""
+    return (answer or "").strip().lower()

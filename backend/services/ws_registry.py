@@ -75,3 +75,20 @@ async def broadcast_game_over(game_id: str) -> None:
             dead.add(ws)
     for ws in dead:
         unregister(game_id, ws)
+
+
+async def broadcast_door_opened(game_id: str) -> None:
+    """Send door_opened event to all connections so every client plays the door animation in parallel."""
+    payload: dict[str, Any] = {"event": "door_opened"}
+    text = json.dumps(payload, ensure_ascii=False)
+    if game_id not in _connections:
+        return
+    dead: set[WebSocket] = set()
+    for ws in _connections[game_id]:
+        try:
+            await ws.send_text(text)
+        except Exception as e:
+            logger.debug("WS door_opened send failed game_id=%s: %s", game_id, e)
+            dead.add(ws)
+    for ws in dead:
+        unregister(game_id, ws)

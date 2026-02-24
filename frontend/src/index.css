@@ -195,6 +195,42 @@ button {
   color: var(--tg-hint);
 }
 
+/* Fullscreen loading overlay – hidden with opacity transition when room + image ready */
+.room-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  transition: opacity 0.3s ease;
+  pointer-events: auto;
+}
+
+.room-loading-overlay.room-loading-overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.room-loading-overlay-text {
+  margin: 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+/* Room section hidden until image loaded; smooth reveal */
+.room-section {
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 0.3s ease, opacity 0.3s ease;
+}
+
+.room-section.room-section--ready {
+  visibility: visible;
+  opacity: 1;
+}
+
 /* חדר בריחה – גלילה אופקית, תחושת חדר. direction: ltr כדי ש-scrollLeft = מרכז עובד */
 .room-wrapper {
   width: 100vw;
@@ -273,6 +309,45 @@ button {
 .room-hotspots-svg .room-hotspot-shape:hover,
 .room-hotspots-svg .room-hotspot-shape:focus-visible {
   fill: rgba(255, 200, 0, 0.35);
+}
+
+/* Door opening video – overlays door area in viewBox coordinates */
+.room-door-video-svg {
+  z-index: 5;
+  pointer-events: none;
+}
+
+.door-video-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.door-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.door-video::-webkit-media-controls {
+  display: none !important;
+}
+
+.door-locked-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 1rem;
+  max-width: 90vw;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .room-hotspots-svg.room-hotspots-disabled .room-hotspot-shape {

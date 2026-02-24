@@ -3,6 +3,7 @@ import {
   getGameState,
   getGameWebSocketUrl,
   getLoreAudioUrl,
+  notifyDoorOpened,
   reportTimeUp,
   sendGameAction,
   type ApiError,
@@ -51,6 +52,12 @@ function getPuzzleByItemId(room: GameStateResponse | null, itemId: string): Puzz
 
 const INITIAL_TIMER_SECONDS = 3600 // 01:00:00
 
+/** Door opening video – place file in public/ or set path to your video in images folder */
+const DOOR_VIDEO_SRC = '/door-opening.mp4'
+
+/** Door hotspot bounds in viewBox 0 0 1280 768 for <foreignObject> */
+const DOOR_VIDEO_BOUNDS = { x: 753, y: 289, width: 138, height: 268 }
+
 /** Hotspot shapes for room image 1280×768 – polygon points and circle (cx, cy, r) */
 const ROOM_HOTSPOT_SHAPES: Array<
   | { itemId: string; type: 'polygon'; points: string }
@@ -88,6 +95,9 @@ export default function GamePage() {
   const [loreNarrationActive, setLoreNarrationActive] = useState(false)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
+  const [solvedItemIds, setSolvedItemIds] = useState<string[]>([])
+  const [doorVideoPlaying, setDoorVideoPlaying] = useState(false)
+  const [doorLockedMessage, setDoorLockedMessage] = useState(false)
   const lorePlayedRef = useRef(false)
 
   const timerStartedRef = useRef(false)
@@ -223,6 +233,7 @@ export default function GamePage() {
     }
     setRoomLoading(true)
     setRoomImageLoaded(false)
+    setSolvedItemIds([])
     setGameStarted(false)
     setStartUIVisible(true)
     setLoreNarrationActive(false)
@@ -232,6 +243,7 @@ export default function GamePage() {
         setRoomLoading(false)
         showStatus('', false)
         setRoom(data)
+        setSolvedItemIds(data.solved_item_ids ?? [])
       })
       .catch((e: ApiError) => {
         setRoomLoading(false)
@@ -327,10 +339,16 @@ export default function GamePage() {
           setGameOver(true)
           return
         }
+        if (data.event === 'door_opened') {
+          setDoorVideoPlaying(true)
+          return
+        }
         if (data.event !== 'puzzle_solved') return
-        const text = (data as PuzzleSolvedEvent).solver_name
-          ? `${(data as PuzzleSolvedEvent).solver_name} פתח/ה את ${(data as PuzzleSolvedEvent).item_label}. הפתרון: ${(data as PuzzleSolvedEvent).answer}`
-          : `${(data as PuzzleSolvedEvent).item_label} נפתח/ה. הפתרון: ${(data as PuzzleSolvedEvent).answer}`
+        const payload = data as PuzzleSolvedEvent
+        setSolvedItemIds((prev) => (prev.includes(payload.item_id) ? prev : [...prev, payload.item_id]))
+        const text = payload.solver_name
+          ? `${payload.solver_name} פתח/ה את ${payload.item_label}. הפתרון: ${payload.answer}`
+          : `${payload.item_label} נפתח/ה. הפתרון: ${payload.answer}`
         if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
         setPuzzleSolvedNotification(text)
         puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
@@ -372,6 +390,9 @@ export default function GamePage() {
     }
   }, [room?.room_image_url, room?.room_items?.length, roomImageLoaded])
 
+  const unlockItemIds = (room && getPuzzles(room).filter((p) => p.type === 'unlock').map((p) => p.item_id)) ?? []
+  const allPuzzlesSolved = unlockItemIds.length > 0 && unlockItemIds.every((id) => solvedItemIds.includes(id))
+
   const openTask = useCallback((item: RoomItemResponse) => {
     setSelectedItem(item)
     setTaskModalOpen(true)
@@ -405,7 +426,10 @@ export default function GamePage() {
           text: res.message ?? (res.correct ? 'הכספת נפתחה!' : 'סיסמה שגויה.'),
           isSuccess: !!res.correct,
         })
-        if (res.correct) setTimeout(closeTaskModal, 2000)
+        if (res.correct) {
+          if (selectedItem) setSolvedItemIds((prev) => (prev.includes(selectedItem.id) ? prev : [...prev, selectedItem.id]))
+          setTimeout(closeTaskModal, 2000)
+        }
       })
       .catch((e: ApiError) => {
         setActionMessage({ text: e?.detail ?? 'שגיאה בשליחת התשובה.', isSuccess: false })
@@ -418,9 +442,20 @@ export default function GamePage() {
   const selectedPuzzle = selectedItem ? getPuzzleByItemId(room, selectedItem.id) : null
   const hasImage = Boolean(room?.room_image_url)
   const situationText = room?.room_lore || room?.room_description || ''
+  const roomReady = !roomLoading && (hasImage ? roomImageLoaded : true)
+  const showLoadingOverlay = showRoomSection || roomLoading
 
   return (
     <div className="game-container">
+      {showLoadingOverlay && (
+        <div
+          className={`room-loading-overlay ${roomReady ? 'room-loading-overlay--hidden' : ''}`}
+          aria-hidden={roomReady}
+          aria-live="polite"
+        >
+          <p className="room-loading-overlay-text">טוען…</p>
+        </div>
+      )}
       {gameOver && (
         <div className="game-over-overlay" role="alert">
           <h2 className="game-over-title">Game Over</h2>
@@ -438,13 +473,17 @@ export default function GamePage() {
           {puzzleSolvedNotification}
         </div>
       )}
-      {roomLoading && <p className="room-loading">טוען…</p>}
+      {doorLockedMessage && (
+        <div className="door-locked-banner" role="alert">
+          הדלת נעולה, עדיין לא השגתם את המפתח לדלת.
+        </div>
+      )}
       {status && (
         <p className={statusError ? 'error' : 'status'} id="game-status">
           {status}
         </p>
       )}
-      {showRoomSection && !roomLoading && startUIVisible && (
+      {showRoomSection && roomReady && startUIVisible && (
         <div className="room-start-ui">
           <button
             type="button"
@@ -463,7 +502,7 @@ export default function GamePage() {
         </div>
       )}
       {showRoomSection && !roomLoading && (
-        <div className="room-section">
+        <div className={`room-section ${roomReady ? 'room-section--ready' : ''}`}>
           {hasImage ? (
             <div className="room-wrapper" ref={panoramaRef}>
               <div className="room-container">
@@ -473,6 +512,37 @@ export default function GamePage() {
                   alt="חדר בריחה"
                   onLoad={onRoomImageLoad}
                 />
+                {doorVideoPlaying && gameStarted && (
+                  <svg
+                    className="room-door-video-svg"
+                    viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
+                    preserveAspectRatio="xMidYMid meet"
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                    aria-hidden
+                  >
+                    <foreignObject
+                      x={DOOR_VIDEO_BOUNDS.x}
+                      y={DOOR_VIDEO_BOUNDS.y}
+                      width={DOOR_VIDEO_BOUNDS.width}
+                      height={DOOR_VIDEO_BOUNDS.height}
+                    >
+                      <div className="door-video-wrap">
+                        <video
+                          className="door-video"
+                          src={DOOR_VIDEO_SRC}
+                          autoPlay
+                          muted={false}
+                          playsInline
+                          onEnded={() => {
+                            setDoorVideoPlaying(false)
+                            const doorItem = roomItems.find((it) => it.id === 'door')
+                            if (doorItem) openTask(doorItem)
+                          }}
+                        />
+                      </div>
+                    </foreignObject>
+                  </svg>
+                )}
                 <svg
                   className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''}`}
                   viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
@@ -484,6 +554,15 @@ export default function GamePage() {
                     if (!item) return null
                     const handleClick = () => {
                       if (!gameStarted) return
+                      if (shape.itemId === 'door') {
+                        if (!allPuzzlesSolved) {
+                          setDoorLockedMessage(true)
+                          setTimeout(() => setDoorLockedMessage(false), 4000)
+                          return
+                        }
+                        if (gameId) notifyDoorOpened(gameId).catch(() => {})
+                        return
+                      }
                       openTask(item)
                     }
                     if (shape.type === 'polygon') {
