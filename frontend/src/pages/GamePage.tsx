@@ -85,6 +85,7 @@ export default function GamePage() {
   const [gameOver, setGameOver] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
   const [startUIVisible, setStartUIVisible] = useState(true)
+  const [loreNarrationActive, setLoreNarrationActive] = useState(false)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const lorePlayedRef = useRef(false)
@@ -108,55 +109,83 @@ export default function GamePage() {
 
   const speakWithBrowserTTS = useCallback((text: string, onEnd?: () => void) => {
     if (!text.trim()) {
+      console.log('[audio] speakWithBrowserTTS: no text, calling onEnd')
       onEnd?.()
       return
     }
     if (!window.speechSynthesis) {
+      console.warn('[audio] speakWithBrowserTTS: speechSynthesis not available')
       onEnd?.()
       return
     }
+    console.log('[audio] speakWithBrowserTTS: starting, text length=', text.length)
     const u = new SpeechSynthesisUtterance(text)
     u.lang = 'he-IL'
     u.rate = 0.95
-    if (onEnd) u.onend = () => onEnd()
-    u.onerror = () => onEnd?.()
+    if (onEnd) u.onend = () => { console.log('[audio] speakWithBrowserTTS: ended'); onEnd() }
+    u.onerror = (e) => { console.warn('[audio] speakWithBrowserTTS: error', e); onEnd?.() }
     window.speechSynthesis.speak(u)
   }, [])
 
-  const playLoreAudio = useCallback((gid: string, loreTextForFallback?: string) => {
-    if (lorePlayedRef.current) return
+  const playLoreAudio = useCallback((gid: string, loreTextForFallback?: string, onNarrationEnd?: () => void) => {
+    if (lorePlayedRef.current) {
+      console.log('[audio] playLoreAudio: already played this session, skip')
+      onNarrationEnd?.()
+      return
+    }
     lorePlayedRef.current = true
     const url = getLoreAudioUrl(gid)
+    console.log('[audio] playLoreAudio: fetch', url)
     const tryFallback = () => {
-      if (loreTextForFallback?.trim()) speakWithBrowserTTS(loreTextForFallback)
+      console.log('[audio] playLoreAudio: using browser TTS fallback, hasText=', !!loreTextForFallback?.trim())
+      if (loreTextForFallback?.trim()) {
+        speakWithBrowserTTS(loreTextForFallback, onNarrationEnd)
+      } else {
+        console.log('[audio] playLoreAudio: no fallback text, calling onNarrationEnd')
+        onNarrationEnd?.()
+      }
       lorePlayedRef.current = false
     }
     fetch(url)
-      .then((r) => r.ok ? r.blob() : null)
+      .then((r) => {
+        console.log('[audio] playLoreAudio: response status=', r.status, r.statusText)
+        return r.ok ? r.blob() : null
+      })
       .then((blob) => {
         if (!blob) {
+          console.warn('[audio] playLoreAudio: no blob (backend error or 404/503), fallback')
           tryFallback()
           return
         }
+        console.log('[audio] playLoreAudio: got blob size=', blob.size, ', playing')
         const objectUrl = URL.createObjectURL(blob)
         const audio = new Audio(objectUrl)
         const cleanup = () => URL.revokeObjectURL(objectUrl)
-        audio.addEventListener('ended', () => cleanup())
+        audio.addEventListener('ended', () => {
+          console.log('[audio] playLoreAudio: playback ended')
+          cleanup()
+          onNarrationEnd?.()
+        })
         audio.play()
-          .catch(() => {
+          .then(() => console.log('[audio] playLoreAudio: play() started'))
+          .catch((err) => {
+            console.warn('[audio] playLoreAudio: play() failed (e.g. autoplay blocked):', err)
             cleanup()
             tryFallback()
             const tryAgain = () => {
               document.removeEventListener('click', tryAgain)
               document.removeEventListener('touchstart', tryAgain)
               lorePlayedRef.current = false
-              playLoreAudio(gid, loreTextForFallback)
+              playLoreAudio(gid, loreTextForFallback, onNarrationEnd)
             }
             document.addEventListener('click', tryAgain, { once: true })
             document.addEventListener('touchstart', tryAgain, { once: true })
           })
       })
-      .catch(() => tryFallback())
+      .catch((err) => {
+        console.warn('[audio] playLoreAudio: fetch failed (network/CORS):', err)
+        tryFallback()
+      })
   }, [speakWithBrowserTTS])
 
   useEffect(() => {
@@ -168,6 +197,7 @@ export default function GamePage() {
     setRoomImageLoaded(false)
     setGameStarted(false)
     setStartUIVisible(true)
+    setLoreNarrationActive(false)
     lorePlayedRef.current = false
     getGameState(gameId)
       .then((data) => {
@@ -224,10 +254,21 @@ export default function GamePage() {
   }, [gameId])
 
   const onStartClick = useCallback(() => {
-    setGameStarted(true)
-    setStartUIVisible(false)
     const situationText = room?.room_lore || room?.room_description || ''
-    if (gameId && situationText) playLoreAudio(gameId, situationText)
+    console.log('[audio] onStartClick: gameId=', gameId, 'situationText length=', situationText.length)
+    const onNarrationEnd = () => {
+      console.log('[audio] onStartClick: narration ended, hiding button')
+      setStartUIVisible(false)
+      setGameStarted(true)
+      setLoreNarrationActive(false)
+    }
+    setLoreNarrationActive(true)
+    if (gameId && situationText) {
+      playLoreAudio(gameId, situationText, onNarrationEnd)
+    } else {
+      console.log('[audio] onStartClick: no gameId or situationText, hiding button immediately')
+      onNarrationEnd()
+    }
   }, [gameId, room?.room_lore, room?.room_description, playLoreAudio])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -388,9 +429,10 @@ export default function GamePage() {
             type="button"
             className="room-start-btn"
             onClick={onStartClick}
-            aria-label="התחל את המשחק"
+            disabled={loreNarrationActive}
+            aria-label={loreNarrationActive ? 'מקריא את הסיפור' : 'התחל את המשחק'}
           >
-            התחל
+            {loreNarrationActive ? 'מקריא…' : 'התחל'}
           </button>
           {situationText && (
             <p className="room-situation room-situation-below-btn" aria-live="polite">

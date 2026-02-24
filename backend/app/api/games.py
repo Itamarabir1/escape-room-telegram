@@ -150,25 +150,33 @@ def _needs_demo_room(game: dict) -> bool:
 @router.get("/{game_id}/lore/audio")
 async def get_lore_audio(game_id: str) -> Response:
     """Returns TTS audio of the room lore (Hebrew). Requires ELEVEN_API_KEY."""
+    logger.info("lore/audio: request game_id=%s", game_id)
     game = get_game_by_id(game_id)
     if not game:
+        logger.warning("lore/audio: game not found game_id=%s", game_id)
         raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
     lore = game.get("room_lore") or ""
     if not lore:
         if _needs_demo_room(game):
+            logger.info("lore/audio: game_id=%s missing room_lore, applying demo room", game_id)
             _apply_demo_room(game)
             save_game(game_id, game)
         lore = game.get("room_lore") or game.get("room_description") or ""
     if not lore:
+        logger.warning("lore/audio: game_id=%s no lore or description for TTS", game_id)
         raise HTTPException(status_code=404, detail="אין סיפור רקע לחדר זה.")
     if not config.ELEVEN_API_KEY:
+        logger.warning("lore/audio: ELEVEN_API_KEY not set")
         raise HTTPException(
             status_code=503,
             detail="הקראת הסיפור אינה זמינה. הגדר ELEVEN_API_KEY.",
         )
+    logger.info("lore/audio: game_id=%s calling TTS (text length=%d)", game_id, len(lore))
     audio_bytes = generate_voice_over(lore, f"lore_{game_id}.mp3")
     if not audio_bytes:
+        logger.error("lore/audio: game_id=%s generate_voice_over returned None", game_id)
         raise HTTPException(status_code=503, detail="יצירת האודיו נכשלה.")
+    logger.info("lore/audio: game_id=%s success, returning %d bytes", game_id, len(audio_bytes))
     return Response(content=audio_bytes, media_type="audio/mpeg")
 
 
