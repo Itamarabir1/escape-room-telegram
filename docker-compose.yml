@@ -34,27 +34,8 @@ services:
       timeout: 3s
       retries: 5
 
-  db:
-    image: mysql:8.0
-    container_name: escape_room_mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-escape_room}
-      MYSQL_USER: ${MYSQL_USER:-escape_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-escape_pass}
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
 volumes:
   redis_data:
   postgres_data:
-  mysql_data:
+

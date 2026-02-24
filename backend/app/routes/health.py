@@ -14,9 +14,9 @@ HEALTH_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate"}
 @router.get("/health")
 async def health_check() -> JSONResponse:
     """
-    Render health  check + Cron-job.org keep-alive.
-    - Cron-job.org: GET לכתובת הזו כל 14 דקות (פחות מ-15 כדי למנוע sleep).
-    - Timeout ב-Cron: לפחות 60 שניות (אחרי sleep הבקשה הראשונה לוקחת ~50 שניות).
+    Render health check + Cron-job.org keep-alive.
+    - Cron-job.org: GET לכתובת הזו כל 10–14 דקות (פחות מ-15 כדי למנוע sleep).
+    - Timeout ב-Cron: חובה 90 שניות (אחרי sleep ההתעוררות לוקחת 30–60 שניות).
     """
     return JSONResponse(
         content={"status": "awake", "mode": config.MODE},

@@ -29,6 +29,8 @@ if _env_path.exists():
 
 from huggingface_hub import InferenceClient
 
+from AI.prompts import ROOM_WALLS_IMAGE_PROMPT, ROOM_IMAGE_NEGATIVE_PROMPT
+
 # --- הגדרות --- (router.huggingface.co — ה-API הישן לא נתמך יותר)
 HF_MODEL = "black-forest-labs/FLUX.1-schnell"
 WIDTH = 1280
@@ -38,29 +40,6 @@ _images_dir = _backend_dir.parent / "images"
 def _output_path() -> Path:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return _images_dir / f"escape_room_{stamp}.png"
-
-PROMPT = (
-    "photorealistic escape room interior, moody warm lighting, "
-    "dark green and brown walls, ornate red carpet on floor, "
-    "drop ceiling with fluorescent lights, atmospheric, immersive, "
-    "LEFT wall: large electrical control panel with glowing amber and green panels, "
-    "toggle switches, blinking LED indicators, analog dials, "
-    "BACK wall center: ONE round analog wall clock with clear dial, "
-    "server rack with blinking blue LEDs next to clock, "
-    "whiteboard with binary numbers 01010111, "
-    "RIGHT wall: ONE wooden door with metal handle, closed, "
-    "small electrical panel with switches on right wall, "
-    "in the far right corner of the room on the floor: "
-    "a small black metal safe box with a keypad on its door, "
-    "the safe is a cube sitting on the carpet, "
-    "CENTER: wooden desk with computer monitor showing green terminal text, "
-    "mechanical keyboard, tangled cables on desk, "
-    "photorealistic, 8k, highly detailed, real escape room photograph"
-)
-
-NEGATIVE_PROMPT = (
-    "vault door, round wheel, wall safe, embedded safe, "
-)
 
 def main() -> None:
     token = os.getenv("HF_TOKEN", "").strip()
@@ -74,12 +53,12 @@ def main() -> None:
 
     print("שולח בקשה ל-Hugging Face (FLUX.1-schnell)...")
     image = client.text_to_image(
-        prompt=PROMPT,
+        prompt=ROOM_WALLS_IMAGE_PROMPT,
         model=HF_MODEL,
         width=WIDTH,
         height=HEIGHT,
         num_inference_steps=4,
-        negative_prompt=NEGATIVE_PROMPT,
+        negative_prompt=ROOM_IMAGE_NEGATIVE_PROMPT,
     )
     image.save(str(out_path))
     print(f"OK - התמונה נשמרה: {out_path}")

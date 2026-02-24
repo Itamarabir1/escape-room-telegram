@@ -131,6 +131,14 @@ body.game-has-room .room-situation {
   transform: scale(0.98);
 }
 
+/* כיתוב מתחת לכפתור התחל – בלי position absolute כדי שיישאר בשורה מתחת */
+.room-start-ui .room-situation {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+}
+
 .room-situation-below-btn {
   margin: 0;
   padding: 10px 16px;
@@ -141,6 +149,7 @@ body.game-has-room .room-situation {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   background: rgba(0, 0, 0, 0.5);
   border-radius: 10px;
+  display: block;
 }
 
 .puzzle-solved-banner {
@@ -462,4 +471,34 @@ button {
   font-size: 1rem;
   color: rgba(255, 255, 255, 0.8);
   margin: 0;
+}
+
+/* סרטון פתיחת דלת – overlay מלא מסך (לא מושפע מגלילה) */
+.door-video-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.door-video-overlay .door-video-player {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.door-video-overlay .door-video-skip {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
 }
