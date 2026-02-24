@@ -1,5 +1,5 @@
-# Escape Room Multiplayer – Redis (game session) + PostgreSQL (persistent) + MySQL (legacy)
-# Usage: docker compose up -d redis postgres   (and optionally db for MySQL)
+# Escape Room Multiplayer – Backend + Redis + PostgreSQL (הכל על דוקר)
+# Usage: בנה פרונט: cd frontend && npm run build. אחר כך: docker compose up -d
 
 services:
   redis:
@@ -15,10 +15,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-
-
-
-
 
   postgres:
     image: postgres:16-alpine
@@ -38,6 +34,25 @@ services:
       timeout: 3s
       retries: 5
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: escape_room_backend
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-escape_user}:${POSTGRES_PASSWORD:-escape_pass}@postgres:5432/${POSTGRES_DB:-escape_room}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      WEBAPP_URL: ${WEBAPP_URL:-http://localhost:8000}
+      PORT: "8000"
+    env_file:
+      - backend/.env
 
 volumes:
   redis_data:
