@@ -107,49 +107,77 @@ export default function GamePage() {
   }, [])
 
   const speakWithBrowserTTS = useCallback((text: string, onEnd?: () => void) => {
-    if (!text.trim() || !window.speechSynthesis) {
+    if (!text.trim()) {
+      console.warn('[audio] speakWithBrowserTTS: no text, skipping')
       onEnd?.()
       return
     }
+    if (!window.speechSynthesis) {
+      console.warn('[audio] speakWithBrowserTTS: speechSynthesis not available')
+      onEnd?.()
+      return
+    }
+    console.log('[audio] speakWithBrowserTTS: starting, text length=', text.length)
     const u = new SpeechSynthesisUtterance(text)
     u.lang = 'he-IL'
     u.rate = 0.95
     if (onEnd) u.onend = () => onEnd()
+    u.onerror = (e) => console.warn('[audio] speakWithBrowserTTS error:', e)
     window.speechSynthesis.speak(u)
   }, [])
 
   const playLoreAudio = useCallback((gid: string, loreTextForFallback?: string) => {
-    if (lorePlayedRef.current) return
+    if (lorePlayedRef.current) {
+      console.log('[audio] playLoreAudio: already played this session, skip')
+      return
+    }
     lorePlayedRef.current = true
+    const url = getLoreAudioUrl(gid)
+    console.log('[audio] playLoreAudio: fetch', url)
     const tryFallback = () => {
+      console.log('[audio] playLoreAudio: using browser TTS fallback, hasText=', !!loreTextForFallback?.trim())
       if (loreTextForFallback?.trim()) speakWithBrowserTTS(loreTextForFallback)
       lorePlayedRef.current = false
     }
-    fetch(getLoreAudioUrl(gid))
-      .then((r) => (r.ok ? r.blob() : null))
+    fetch(url)
+      .then((r) => {
+        console.log('[audio] playLoreAudio: response status=', r.status, r.statusText)
+        return r.ok ? r.blob() : null
+      })
       .then((blob) => {
         if (!blob) {
+          console.warn('[audio] playLoreAudio: no blob (backend error or 404/503), fallback')
           tryFallback()
           return
         }
-        const url = URL.createObjectURL(blob)
-        const audio = new Audio(url)
-        const cleanup = () => URL.revokeObjectURL(url)
-        audio.addEventListener('ended', cleanup)
-        audio.play().then(() => {}).catch(() => {
+        console.log('[audio] playLoreAudio: got blob size=', blob.size, ', playing')
+        const objectUrl = URL.createObjectURL(blob)
+        const audio = new Audio(objectUrl)
+        const cleanup = () => URL.revokeObjectURL(objectUrl)
+        audio.addEventListener('ended', () => {
+          console.log('[audio] playLoreAudio: playback ended')
           cleanup()
-          tryFallback()
-          const tryAgain = () => {
-            document.removeEventListener('click', tryAgain)
-            document.removeEventListener('touchstart', tryAgain)
-            lorePlayedRef.current = false
-            playLoreAudio(gid, loreTextForFallback)
-          }
-          document.addEventListener('click', tryAgain, { once: true })
-          document.addEventListener('touchstart', tryAgain, { once: true })
         })
+        audio.play()
+          .then(() => console.log('[audio] playLoreAudio: play() started'))
+          .catch((err) => {
+            console.warn('[audio] playLoreAudio: play() failed (e.g. autoplay blocked):', err)
+            cleanup()
+            tryFallback()
+            const tryAgain = () => {
+              document.removeEventListener('click', tryAgain)
+              document.removeEventListener('touchstart', tryAgain)
+              lorePlayedRef.current = false
+              playLoreAudio(gid, loreTextForFallback)
+            }
+            document.addEventListener('click', tryAgain, { once: true })
+            document.addEventListener('touchstart', tryAgain, { once: true })
+          })
       })
-      .catch(() => tryFallback())
+      .catch((err) => {
+        console.warn('[audio] playLoreAudio: fetch failed (network/CORS):', err)
+        tryFallback()
+      })
   }, [speakWithBrowserTTS])
 
   useEffect(() => {
@@ -220,8 +248,11 @@ export default function GamePage() {
     setGameStarted(true)
     setStartUIVisible(false)
     const situationText = room?.room_lore || room?.room_description || ''
+    console.log('[audio] onStartClick: gameId=', gameId, 'situationText length=', situationText.length)
     if (gameId && situationText) {
       playLoreAudio(gameId, situationText)
+    } else {
+      console.warn('[audio] onStartClick: skip playLoreAudio (no gameId or no situationText)')
     }
   }, [gameId, room?.room_lore, room?.room_description, playLoreAudio])
 
