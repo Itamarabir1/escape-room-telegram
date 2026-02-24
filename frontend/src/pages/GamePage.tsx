@@ -90,6 +90,8 @@ export default function GamePage() {
   const lorePlayedRef = useRef(false)
   const timerStartedRef = useRef(false)
   const timeUpSentRef = useRef(false)
+  const [modalTextReadDone, setModalTextReadDone] = useState(false)
+  const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
 
   const tg = getTelegramWebApp()
   if (tg.expand) tg.expand()
@@ -104,39 +106,51 @@ export default function GamePage() {
     setStatusError(isError)
   }, [])
 
-  const playLoreAudio = useCallback((gid: string, onEnded?: () => void) => {
+  const speakWithBrowserTTS = useCallback((text: string, onEnd?: () => void) => {
+    if (!text.trim() || !window.speechSynthesis) {
+      onEnd?.()
+      return
+    }
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'he-IL'
+    u.rate = 0.95
+    if (onEnd) u.onend = () => onEnd()
+    window.speechSynthesis.speak(u)
+  }, [])
+
+  const playLoreAudio = useCallback((gid: string, loreTextForFallback?: string) => {
     if (lorePlayedRef.current) return
     lorePlayedRef.current = true
+    const tryFallback = () => {
+      if (loreTextForFallback?.trim()) speakWithBrowserTTS(loreTextForFallback)
+      lorePlayedRef.current = false
+    }
     fetch(getLoreAudioUrl(gid))
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
         if (!blob) {
-          lorePlayedRef.current = false
+          tryFallback()
           return
         }
         const url = URL.createObjectURL(blob)
         const audio = new Audio(url)
         const cleanup = () => URL.revokeObjectURL(url)
-        audio.addEventListener('ended', () => {
-          cleanup()
-          onEnded?.()
-        })
+        audio.addEventListener('ended', cleanup)
         audio.play().then(() => {}).catch(() => {
           cleanup()
-          lorePlayedRef.current = false
+          tryFallback()
           const tryAgain = () => {
             document.removeEventListener('click', tryAgain)
             document.removeEventListener('touchstart', tryAgain)
-            playLoreAudio(gid, onEnded)
+            lorePlayedRef.current = false
+            playLoreAudio(gid, loreTextForFallback)
           }
           document.addEventListener('click', tryAgain, { once: true })
           document.addEventListener('touchstart', tryAgain, { once: true })
         })
       })
-      .catch(() => {
-        lorePlayedRef.current = false
-      })
-  }, [])
+      .catch(() => tryFallback())
+  }, [speakWithBrowserTTS])
 
   useEffect(() => {
     if (!gameId) {
@@ -204,12 +218,12 @@ export default function GamePage() {
 
   const onStartClick = useCallback(() => {
     setGameStarted(true)
-    if (gameId && room?.room_lore) {
-      playLoreAudio(gameId, () => setStartUIVisible(false))
-    } else {
-      setStartUIVisible(false)
+    setStartUIVisible(false)
+    const situationText = room?.room_lore || room?.room_description || ''
+    if (gameId && situationText) {
+      playLoreAudio(gameId, situationText)
     }
-  }, [gameId, room?.room_lore, playLoreAudio])
+  }, [gameId, room?.room_lore, room?.room_description, playLoreAudio])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -273,13 +287,17 @@ export default function GamePage() {
     setTaskModalOpen(true)
     setUnlockAnswer('')
     setActionMessage(null)
+    setModalTextReadDone(false)
   }, [])
 
   const closeTaskModal = useCallback(() => {
+    window.speechSynthesis.cancel()
+    modalTTSRef.current = null
     setTaskModalOpen(false)
     setSelectedItem(null)
     setUnlockAnswer('')
     setActionMessage(null)
+    setModalTextReadDone(false)
   }, [])
 
   const submitUnlockAnswer = useCallback(() => {
@@ -312,6 +330,27 @@ export default function GamePage() {
   const selectedPuzzle = selectedItem ? getPuzzleByItemId(room, selectedItem.id) : null
   const hasImage = Boolean(room?.room_image_url)
   const situationText = room?.room_lore || room?.room_description || ''
+
+  useEffect(() => {
+    if (!taskModalOpen || !selectedPuzzle) return
+    const textToRead = [selectedPuzzle.backstory, selectedPuzzle.prompt_text].filter(Boolean).join('\n\n')
+    if (!textToRead.trim()) {
+      setModalTextReadDone(true)
+      return
+    }
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(textToRead)
+    u.lang = 'he-IL'
+    u.rate = 0.95
+    u.onend = () => setModalTextReadDone(true)
+    u.onerror = () => setModalTextReadDone(true)
+    modalTTSRef.current = u
+    window.speechSynthesis.speak(u)
+    return () => {
+      window.speechSynthesis.cancel()
+      modalTTSRef.current = null
+    }
+  }, [taskModalOpen, selectedItem?.id, selectedPuzzle])
 
   return (
     <div className="game-container">
@@ -451,16 +490,20 @@ export default function GamePage() {
         >
           <div className="modal-content">
             <h2 id="task-modal-title">{selectedItem.label}</h2>
-            <p className="modal-backstory">{selectedPuzzle.backstory}</p>
+            {!modalTextReadDone && (
+              <>
+                <p className="modal-backstory modal-text-fullwidth">{selectedPuzzle.backstory}</p>
+                {selectedPuzzle.prompt_text != null && (
+                  <p className="modal-prompt modal-text-fullwidth">{selectedPuzzle.prompt_text}</p>
+                )}
+              </>
+            )}
             {selectedPuzzle.type === 'unlock' && (
               <>
                 {selectedPuzzle.encoded_clue != null && (
                   <p className="modal-clue">
                     <strong>הקוד במסוף:</strong> <code>{selectedPuzzle.encoded_clue}</code>
                   </p>
-                )}
-                {selectedPuzzle.prompt_text != null && (
-                  <p className="modal-prompt">{selectedPuzzle.prompt_text}</p>
                 )}
                 <input
                   type="text"

@@ -17,5 +17,5 @@ COPY frontend/dist ./frontend/dist
 ENV PYTHONPATH=/app:/app/backend
 EXPOSE 8000
 
-# 4. הרצה משורש הפרויקט (/app) – אין WORKDIR /app/backend
-CMD ["uv", "run", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 4. הרצה משורש הפרויקט (/app). PORT מ-Render, ברירת מחדל 8000 ל-docker/local
+CMD ["sh", "-c", "uv run uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
