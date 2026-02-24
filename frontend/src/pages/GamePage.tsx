@@ -89,9 +89,9 @@ export default function GamePage() {
   const panoramaRef = useRef<HTMLDivElement>(null)
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const lorePlayedRef = useRef(false)
+
   const timerStartedRef = useRef(false)
   const timeUpSentRef = useRef(false)
-  const [modalTextReadDone, setModalTextReadDone] = useState(false)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
 
   const tg = getTelegramWebApp()
@@ -127,37 +127,27 @@ export default function GamePage() {
     window.speechSynthesis.speak(u)
   }, [])
 
-  const playLoreAudio = useCallback((gid: string, loreTextForFallback?: string, onNarrationEnd?: () => void) => {
-    if (lorePlayedRef.current) {
-      console.log('[audio] playLoreAudio: already played this session, skip')
-      onNarrationEnd?.()
-      return
-    }
-    lorePlayedRef.current = true
-    const url = getLoreAudioUrl(gid)
-    console.log('[audio] playLoreAudio: fetch', url)
-    const tryFallback = () => {
-      console.log('[audio] playLoreAudio: using browser TTS fallback, hasText=', !!loreTextForFallback?.trim())
-      if (loreTextForFallback?.trim()) {
-        speakWithBrowserTTS(loreTextForFallback, onNarrationEnd)
-      } else {
-        console.log('[audio] playLoreAudio: no fallback text, calling onNarrationEnd')
+  const playLoreAudio = useCallback(
+    (gid: string, loreTextForFallback?: string, onNarrationEnd?: () => void, audioContext?: AudioContext | null) => {
+      if (lorePlayedRef.current) {
+        console.log('[audio] playLoreAudio: already played this session, skip')
         onNarrationEnd?.()
+        return
       }
-      lorePlayedRef.current = false
-    }
-    fetch(url)
-      .then((r) => {
-        console.log('[audio] playLoreAudio: response status=', r.status, r.statusText)
-        return r.ok ? r.blob() : null
-      })
-      .then((blob) => {
-        if (!blob) {
-          console.warn('[audio] playLoreAudio: no blob (backend error or 404/503), fallback')
-          tryFallback()
-          return
+      lorePlayedRef.current = true
+      const url = getLoreAudioUrl(gid)
+      console.log('[audio] playLoreAudio: fetch', url)
+      const tryFallback = () => {
+        console.log('[audio] playLoreAudio: using browser TTS fallback, hasText=', !!loreTextForFallback?.trim())
+        if (loreTextForFallback?.trim()) {
+          speakWithBrowserTTS(loreTextForFallback, onNarrationEnd)
+        } else {
+          console.log('[audio] playLoreAudio: no fallback text, calling onNarrationEnd')
+          onNarrationEnd?.()
         }
-        console.log('[audio] playLoreAudio: got blob size=', blob.size, ', playing')
+        lorePlayedRef.current = false
+      }
+      const playWithAudioElement = (blob: Blob) => {
         const objectUrl = URL.createObjectURL(blob)
         const audio = new Audio(objectUrl)
         const cleanup = () => URL.revokeObjectURL(objectUrl)
@@ -169,24 +159,50 @@ export default function GamePage() {
         audio.play()
           .then(() => console.log('[audio] playLoreAudio: play() started'))
           .catch((err) => {
-            console.warn('[audio] playLoreAudio: play() failed (e.g. autoplay blocked):', err)
+            console.warn('[audio] playLoreAudio: play() failed:', err)
             cleanup()
             tryFallback()
-            const tryAgain = () => {
-              document.removeEventListener('click', tryAgain)
-              document.removeEventListener('touchstart', tryAgain)
-              lorePlayedRef.current = false
-              playLoreAudio(gid, loreTextForFallback, onNarrationEnd)
-            }
-            document.addEventListener('click', tryAgain, { once: true })
-            document.addEventListener('touchstart', tryAgain, { once: true })
           })
-      })
-      .catch((err) => {
-        console.warn('[audio] playLoreAudio: fetch failed (network/CORS):', err)
-        tryFallback()
-      })
-  }, [speakWithBrowserTTS])
+      }
+      fetch(url)
+        .then((r) => {
+          console.log('[audio] playLoreAudio: response status=', r.status, r.statusText)
+          return r.ok ? r.blob() : null
+        })
+        .then(async (blob) => {
+          if (!blob) {
+            console.warn('[audio] playLoreAudio: no blob (backend error or 404/503), fallback')
+            tryFallback()
+            return
+          }
+          console.log('[audio] playLoreAudio: got blob size=', blob.size)
+          if (audioContext && audioContext.state !== 'closed') {
+            try {
+              const arrayBuffer = await blob.arrayBuffer()
+              const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+              const source = audioContext.createBufferSource()
+              source.buffer = audioBuffer
+              source.connect(audioContext.destination)
+              source.onended = () => {
+                console.log('[audio] playLoreAudio: Web Audio playback ended')
+                onNarrationEnd?.()
+              }
+              source.start(0)
+              console.log('[audio] playLoreAudio: Web Audio play() started')
+              return
+            } catch (e) {
+              console.warn('[audio] playLoreAudio: Web Audio failed, fallback to Audio element:', e)
+            }
+          }
+          playWithAudioElement(blob)
+        })
+        .catch((err) => {
+          console.warn('[audio] playLoreAudio: fetch failed (network/CORS):', err)
+          tryFallback()
+        })
+    },
+    [speakWithBrowserTTS]
+  )
 
   useEffect(() => {
     if (!gameId) {
@@ -253,7 +269,7 @@ export default function GamePage() {
     timerStartedRef.current = false
   }, [gameId])
 
-  const onStartClick = useCallback(() => {
+  const onStartClick = useCallback(async () => {
     const situationText = room?.room_lore || room?.room_description || ''
     console.log('[audio] onStartClick: gameId=', gameId, 'situationText length=', situationText.length)
     const onNarrationEnd = () => {
@@ -263,12 +279,24 @@ export default function GamePage() {
       setLoreNarrationActive(false)
     }
     setLoreNarrationActive(true)
-    if (gameId && situationText) {
-      playLoreAudio(gameId, situationText, onNarrationEnd)
-    } else {
+    if (!gameId || !situationText) {
       console.log('[audio] onStartClick: no gameId or situationText, hiding button immediately')
       onNarrationEnd()
+      return
     }
+    let ctx: AudioContext | null = null
+    const AudioContextClass = typeof window !== 'undefined' && (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+    if (AudioContextClass) {
+      try {
+        ctx = new AudioContextClass()
+        await ctx.resume()
+        console.log('[audio] onStartClick: AudioContext resumed, state=', ctx.state)
+      } catch (e) {
+        console.warn('[audio] onStartClick: AudioContext resume failed', e)
+        ctx = null
+      }
+    }
+    playLoreAudio(gameId, situationText, onNarrationEnd, ctx)
   }, [gameId, room?.room_lore, room?.room_description, playLoreAudio])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -333,7 +361,6 @@ export default function GamePage() {
     setTaskModalOpen(true)
     setUnlockAnswer('')
     setActionMessage(null)
-    setModalTextReadDone(false)
   }, [])
 
   const closeTaskModal = useCallback(() => {
@@ -343,7 +370,6 @@ export default function GamePage() {
     setSelectedItem(null)
     setUnlockAnswer('')
     setActionMessage(null)
-    setModalTextReadDone(false)
   }, [])
 
   const submitUnlockAnswer = useCallback(() => {
@@ -376,27 +402,6 @@ export default function GamePage() {
   const selectedPuzzle = selectedItem ? getPuzzleByItemId(room, selectedItem.id) : null
   const hasImage = Boolean(room?.room_image_url)
   const situationText = room?.room_lore || room?.room_description || ''
-
-  useEffect(() => {
-    if (!taskModalOpen || !selectedPuzzle) return
-    const textToRead = [selectedPuzzle.backstory, selectedPuzzle.prompt_text].filter(Boolean).join('\n\n')
-    if (!textToRead.trim()) {
-      setModalTextReadDone(true)
-      return
-    }
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(textToRead)
-    u.lang = 'he-IL'
-    u.rate = 0.95
-    u.onend = () => setModalTextReadDone(true)
-    u.onerror = () => setModalTextReadDone(true)
-    modalTTSRef.current = u
-    window.speechSynthesis.speak(u)
-    return () => {
-      window.speechSynthesis.cancel()
-      modalTTSRef.current = null
-    }
-  }, [taskModalOpen, selectedItem?.id, selectedPuzzle])
 
   return (
     <div className="game-container">
@@ -537,13 +542,11 @@ export default function GamePage() {
         >
           <div className="modal-content">
             <h2 id="task-modal-title">{selectedItem.label}</h2>
-            {!modalTextReadDone && (
-              <>
-                <p className="modal-backstory modal-text-fullwidth">{selectedPuzzle.backstory}</p>
-                {selectedPuzzle.prompt_text != null && (
-                  <p className="modal-prompt modal-text-fullwidth">{selectedPuzzle.prompt_text}</p>
-                )}
-              </>
+            {selectedPuzzle.backstory != null && selectedPuzzle.backstory !== '' && (
+              <p className="modal-backstory modal-text-fullwidth">{selectedPuzzle.backstory}</p>
+            )}
+            {selectedPuzzle.prompt_text != null && selectedPuzzle.prompt_text !== '' && (
+              <p className="modal-prompt modal-text-fullwidth">{selectedPuzzle.prompt_text}</p>
             )}
             {selectedPuzzle.type === 'unlock' && (
               <>
