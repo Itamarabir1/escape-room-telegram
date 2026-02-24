@@ -128,7 +128,7 @@ export default function GamePage() {
   }, [])
 
   const playLoreAudio = useCallback(
-    (gid: string, loreTextForFallback?: string, onNarrationEnd?: () => void, audioContext?: AudioContext | null) => {
+    (gid: string, loreTextForFallback?: string, onNarrationEnd?: () => void, audioContext?: AudioContext | null, audioElementForFallback?: HTMLAudioElement | null) => {
       if (lorePlayedRef.current) {
         console.log('[audio] playLoreAudio: already played this session, skip')
         onNarrationEnd?.()
@@ -147,22 +147,30 @@ export default function GamePage() {
         }
         lorePlayedRef.current = false
       }
-      const playWithAudioElement = (blob: Blob) => {
+      const playWithAudioElement = (blob: Blob, audioEl: HTMLAudioElement) => {
         const objectUrl = URL.createObjectURL(blob)
-        const audio = new Audio(objectUrl)
         const cleanup = () => URL.revokeObjectURL(objectUrl)
-        audio.addEventListener('ended', () => {
+        const onEnded = () => {
           console.log('[audio] playLoreAudio: playback ended')
           cleanup()
           onNarrationEnd?.()
-        })
-        audio.play()
+        }
+        const onPlayFailed = (err: unknown) => {
+          console.warn('[audio] playLoreAudio: play() failed:', err)
+          cleanup()
+          tryFallback()
+        }
+        const onError = () => onPlayFailed(null)
+        if (audioEl.src && audioEl.src.startsWith('blob:')) URL.revokeObjectURL(audioEl.src)
+        audioEl.src = objectUrl
+        audioEl.load()
+        audioEl.removeEventListener('ended', onEnded)
+        audioEl.removeEventListener('error', onError)
+        audioEl.addEventListener('ended', onEnded)
+        audioEl.addEventListener('error', onError)
+        audioEl.play()
           .then(() => console.log('[audio] playLoreAudio: play() started'))
-          .catch((err) => {
-            console.warn('[audio] playLoreAudio: play() failed:', err)
-            cleanup()
-            tryFallback()
-          })
+          .catch(onPlayFailed)
       }
       fetch(url)
         .then((r) => {
@@ -194,7 +202,11 @@ export default function GamePage() {
               console.warn('[audio] playLoreAudio: Web Audio failed, fallback to Audio element:', e)
             }
           }
-          playWithAudioElement(blob)
+          if (audioElementForFallback) {
+            playWithAudioElement(blob, audioElementForFallback)
+          } else {
+            tryFallback()
+          }
         })
         .catch((err) => {
           console.warn('[audio] playLoreAudio: fetch failed (network/CORS):', err)
@@ -270,6 +282,10 @@ export default function GamePage() {
   }, [gameId])
 
   const onStartClick = useCallback(async () => {
+    const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    const unlockedAudioEl = new Audio(SILENT_WAV)
+    unlockedAudioEl.play().catch(() => {})
+
     const situationText = room?.room_lore || room?.room_description || ''
     console.log('[audio] onStartClick: gameId=', gameId, 'situationText length=', situationText.length)
     const onNarrationEnd = () => {
@@ -296,7 +312,7 @@ export default function GamePage() {
         ctx = null
       }
     }
-    playLoreAudio(gameId, situationText, onNarrationEnd, ctx)
+    playLoreAudio(gameId, situationText, onNarrationEnd, ctx, unlockedAudioEl)
   }, [gameId, room?.room_lore, room?.room_description, playLoreAudio])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
