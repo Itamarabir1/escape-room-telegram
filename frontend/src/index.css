@@ -105,7 +105,7 @@ body.game-has-room .room-situation {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   max-width: 90vw;
 }
 
@@ -133,6 +133,7 @@ body.game-has-room .room-situation {
 
 .room-situation-below-btn {
   margin: 0;
+  margin-top: 4px;
   padding: 10px 16px;
   font-size: 0.95rem;
   line-height: 1.5;
