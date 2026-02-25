@@ -369,9 +369,9 @@ export default function GamePage() {
           payload.item_id === 'clock_1'
             ? 'השעון כוון בהצלחה'
             : payload.item_id === 'board_servers'
-              ? 'לוח הבקרה תוקן. מספר הרשתות הסודיות הוא 3'
+              ? 'מספר הרשתות הסודיות בחדר הוא 3'
               : payload.item_id === 'safe_1'
-                ? 'הכספת נפתחה מצאתם מפתח'
+                ? 'הכספת נפתחה בהצלחה בתוכה יש מפתח'
                 : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
         if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
         setPuzzleSolvedNotification(text)
@@ -434,6 +434,16 @@ export default function GamePage() {
     setUnlockAnswer('')
     setActionMessage(null)
   }, [])
+
+  /** Inline close handler so the button always works (e.g. in Telegram WebView where events can be unreliable). */
+  const handleCloseModal = () => {
+    window.speechSynthesis.cancel()
+    modalTTSRef.current = null
+    setTaskModalOpen(false)
+    setSelectedItem(null)
+    setUnlockAnswer('')
+    setActionMessage(null)
+  }
 
   const submitUnlockAnswer = useCallback(() => {
     if (!gameId || !selectedItem) return
@@ -722,8 +732,8 @@ export default function GamePage() {
                   <button
                     type="button"
                     className="modal-close-btn"
-                    onClick={closeTaskModal}
-                    onPointerDown={(e) => { e.preventDefault(); closeTaskModal(e) }}
+                    onClick={handleCloseModal}
+                    onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
                   >
                     סגור
                   </button>
@@ -735,8 +745,8 @@ export default function GamePage() {
                 <button
                   type="button"
                   className="modal-close-btn"
-                  onClick={closeTaskModal}
-                  onPointerDown={(e) => { e.preventDefault(); closeTaskModal(e) }}
+                  onClick={handleCloseModal}
+                  onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
                 >
                   סגור
                 </button>
@@ -747,8 +757,8 @@ export default function GamePage() {
                 <button
                   type="button"
                   className="modal-close-btn"
-                  onClick={closeTaskModal}
-                  onPointerDown={(e) => { e.preventDefault(); closeTaskModal(e) }}
+                  onClick={handleCloseModal}
+                  onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
                 >
                   סגור
                 </button>
