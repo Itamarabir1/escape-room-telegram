@@ -8,11 +8,11 @@ Room image is not generated at runtime; use demo room (items + positions) or a s
 """
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 
-from AI.audio_service import generate_voice_over
 from config import config
 from data.demo_room import (
     DEMO_ROOM_HEIGHT,
@@ -190,34 +190,19 @@ def _needs_demo_room(game: dict) -> bool:
     )
 
 
+# תיקיית שמע בפרויקט – האודיו נשמר כאן ומושמע בלחיצה על "התחל"
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+AUDIO_DIR = _BACKEND_DIR / "audio"
+LORE_WAV_PATH = AUDIO_DIR / "lore.wav"
+
+
 @router.get("/{game_id}/lore/audio")
 async def get_lore_audio(game_id: str, request: Request) -> Response:
-    """Returns TTS audio of the room lore (Hebrew). Requires ELEVEN_API_KEY."""
-    logger.info("lore/audio: request game_id=%s", game_id)
-    game = _get_game_and_require_player(game_id, request)
-    lore = game.get("room_lore") or ""
-    if not lore:
-        if _needs_demo_room(game):
-            logger.info("lore/audio: game_id=%s missing room_lore, applying demo room", game_id)
-            _apply_demo_room(game)
-            save_game(game_id, game)
-        lore = game.get("room_lore") or game.get("room_description") or ""
-    if not lore:
-        logger.warning("lore/audio: game_id=%s no lore or description for TTS", game_id)
-        raise HTTPException(status_code=404, detail="אין סיפור רקע לחדר זה.")
-    if not config.ELEVEN_API_KEY:
-        logger.warning("lore/audio: ELEVEN_API_KEY not set")
-        raise HTTPException(
-            status_code=503,
-            detail="הקראת הסיפור אינה זמינה. הגדר ELEVEN_API_KEY.",
-        )
-    logger.info("lore/audio: game_id=%s calling TTS (text length=%d)", game_id, len(lore))
-    audio_bytes = generate_voice_over(lore, f"lore_{game_id}.mp3")
-    if not audio_bytes:
-        logger.error("lore/audio: game_id=%s generate_voice_over returned None", game_id)
-        raise HTTPException(status_code=503, detail="יצירת האודיו נכשלה.")
-    logger.info("lore/audio: game_id=%s success, returning %d bytes", game_id, len(audio_bytes))
-    return Response(content=audio_bytes, media_type="audio/mpeg")
+    """Serves the static lore audio (backend/audio/lore.wav). Played when user clicks התחל."""
+    _get_game_and_require_player(game_id, request)
+    if not LORE_WAV_PATH.exists():
+        raise HTTPException(status_code=404, detail="Lore audio not found. Add backend/audio/lore.wav")
+    return FileResponse(LORE_WAV_PATH, media_type="audio/wav")
 
 
 def _item_label(game: dict, item_id: str) -> str:

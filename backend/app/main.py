@@ -23,7 +23,9 @@ app = FastAPI(title="Telegram Bot - חדר בריחה")
 
 # Repo root: telegram-bot/; backend at telegram-bot/backend/
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_BACKEND_DIR = _REPO_ROOT / "backend"
 IMAGES_DIR = _REPO_ROOT / "images"
+AUDIO_DIR = _BACKEND_DIR / "audio"
 FRONTEND_DIST = _REPO_ROOT / "frontend" / "dist"
 
 if FRONTEND_DIST.exists():
@@ -54,6 +56,16 @@ async def serve_door_video():
             return FileResponse(path, media_type="video/mp4")
     from fastapi import HTTPException
     raise HTTPException(status_code=404, detail="Door video not found. Add images/door_open.mp4")
+
+
+@app.get("/audio/lore.wav")
+async def serve_lore_audio():
+    """Serves the static lore audio (backend/audio/lore.wav). Used when user clicks התחל."""
+    path = AUDIO_DIR / "lore.wav"
+    if not path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Lore audio not found. Add backend/audio/lore.wav")
+    return FileResponse(path, media_type="audio/wav")
 
 
 app.include_router(games_router, prefix="/api")

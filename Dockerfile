@@ -4,6 +4,9 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 # קביעת תיקיית העבודה לשורש הפרויקט
 WORKDIR /app
 
+# Git נדרש ל-uv sync (parler-tts → descript-audiotools מ-git)
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
 # 1. העתקת קבצי התלויות לשורש לצורך ה-Sync
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project || uv sync --no-dev --no-install-project

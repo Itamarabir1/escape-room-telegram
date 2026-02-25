@@ -33,13 +33,6 @@ class Config:
     
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
     HF_FLUX_MODEL: str = os.getenv("HF_FLUX_MODEL", "black-forest-labs/FLUX.1-schnell")
-    
-    # שינוי כאן: הוספתי תמיכה ספציפית ב-ELEVENLABS_API_KEY שמופיע ב-.env שלך
-    ELEVEN_API_KEY: str = (
-        os.getenv("ELEVENLABS_API_KEY") or 
-        os.getenv("ELEVEN_API_KEY") or 
-        ""
-    )
 
     # --- AWS ---
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
