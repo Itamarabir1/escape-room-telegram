@@ -9,6 +9,21 @@ function gameUrl(gameId: string): string {
   return API_BASE + '/' + encodeURIComponent(gameId)
 }
 
+/** Telegram Web App initData – required for game API (only registered players can access). */
+function getInitData(): string {
+  if (typeof window === 'undefined') return ''
+  const data = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData
+  return data ?? ''
+}
+
+function gameHeaders(extra: HeadersInit = {}): HeadersInit {
+  const init = getInitData()
+  return {
+    ...(init ? { 'X-Telegram-Init-Data': init } : {}),
+    ...extra,
+  }
+}
+
 export interface RoomItemResponse {
   id: string
   label: string
@@ -40,6 +55,8 @@ export interface GameStateResponse {
   puzzles?: PuzzleResponse[]
   /** item_ids with solved status in DB (per group) */
   solved_item_ids?: string[]
+  /** ISO timestamp when first user clicked "התחל"; used for timer and rejoin */
+  started_at?: string
 }
 
 /** Room canvas size – larger than screen so user scrolls left/right (panorama) */
@@ -56,7 +73,7 @@ export interface ApiError {
  * Backend returns room with items + positions (no image by default; image can be static later).
  */
 export async function getGameState(gameId: string): Promise<GameStateResponse> {
-  const res = await fetch(gameUrl(gameId))
+  const res = await fetch(gameUrl(gameId), { headers: gameHeaders() })
   if (res.ok) return res.json()
   let detail: string
   try {
@@ -84,7 +101,7 @@ export async function sendGameAction(
 ): Promise<ActionResponse> {
   const res = await fetch(gameUrl(gameId) + '/action', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: gameHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload ?? {}),
   })
   if (!res.ok) {
@@ -95,17 +112,34 @@ export async function sendGameAction(
 }
 
 /**
- * GET /api/games/{game_id}/lore/audio – returns blob for Audio.
+ * GET /api/games/{game_id}/lore/audio – returns blob for Audio. Requires initData header (registered players only).
  */
 export function getLoreAudioUrl(gameId: string): string {
   return gameUrl(gameId) + '/lore/audio'
+}
+
+/** Fetch lore audio with initData header (for playback in GamePage). */
+export function fetchLoreAudio(gameId: string): Promise<Response> {
+  return fetch(getLoreAudioUrl(gameId), { headers: gameHeaders() })
 }
 
 /**
  * POST /api/games/{game_id}/time_up – notify backend that timer reached 0. Ends game and notifies group.
  */
 export async function reportTimeUp(gameId: string): Promise<{ ok: boolean; message: string }> {
-  const res = await fetch(gameUrl(gameId) + '/time_up', { method: 'POST' })
+  const res = await fetch(gameUrl(gameId) + '/time_up', { method: 'POST', headers: gameHeaders() })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw { status: res.status, detail: body?.detail ?? res.statusText } as ApiError
+  }
+  return res.json()
+}
+
+/**
+ * POST /api/games/{game_id}/start – record that the game has started (first "התחל" click). Enables rejoin with correct timer.
+ */
+export async function startGame(gameId: string): Promise<{ ok: boolean }> {
+  const res = await fetch(gameUrl(gameId) + '/start', { method: 'POST', headers: gameHeaders() })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw { status: res.status, detail: body?.detail ?? res.statusText } as ApiError
@@ -117,7 +151,7 @@ export async function reportTimeUp(gameId: string): Promise<{ ok: boolean; messa
  * POST /api/games/{game_id}/door_opened – notify that door was clicked (all puzzles solved). Backend broadcasts door_opened so all clients play the animation together.
  */
 export async function notifyDoorOpened(gameId: string): Promise<{ ok: boolean }> {
-  const res = await fetch(gameUrl(gameId) + '/door_opened', { method: 'POST' })
+  const res = await fetch(gameUrl(gameId) + '/door_opened', { method: 'POST', headers: gameHeaders() })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw { status: res.status, detail: body?.detail ?? res.statusText } as ApiError
@@ -147,7 +181,10 @@ export function getGameWebSocketUrl(gameId: string): string {
   const origin = apiBaseOrigin()
   const wsScheme = origin.startsWith('https') ? 'wss' : 'ws'
   const host = origin.replace(/^https?:\/\//, '')
-  return `${wsScheme}://${host}/ws/games/${encodeURIComponent(gameId)}`
+  const init = getInitData()
+  const path = `/ws/games/${encodeURIComponent(gameId)}`
+  const query = init ? `?init_data=${encodeURIComponent(init)}` : ''
+  return `${wsScheme}://${host}${path}${query}`
 }
 
 export interface PuzzleSolvedEvent {

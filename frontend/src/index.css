@@ -201,8 +201,10 @@ button {
   inset: 0;
   z-index: 100;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
   background: rgba(0, 0, 0, 0.92);
   transition: opacity 0.3s ease;
   pointer-events: auto;
@@ -211,6 +213,21 @@ button {
 .room-loading-overlay.room-loading-overlay--hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+.room-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: room-loading-spin 0.9s linear infinite;
+}
+
+@keyframes room-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .room-loading-overlay-text {

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getGameState,
   getGameWebSocketUrl,
-  getLoreAudioUrl,
+  fetchLoreAudio,
   notifyDoorOpened,
   reportTimeUp,
   sendGameAction,
+  startGame,
   type ApiError,
   type GameStateResponse,
   type PuzzleSolvedEvent,
@@ -98,10 +99,12 @@ export default function GamePage() {
   const [solvedItemIds, setSolvedItemIds] = useState<string[]>([])
   const [doorVideoPlaying, setDoorVideoPlaying] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState(false)
+  const [blockedItemMessage, setBlockedItemMessage] = useState<string | null>(null)
   const lorePlayedRef = useRef(false)
 
   const timerStartedRef = useRef(false)
   const timeUpSentRef = useRef(false)
+  const skipTimerInitRef = useRef(false)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
 
   const tg = getTelegramWebApp()
@@ -145,8 +148,7 @@ export default function GamePage() {
         return
       }
       lorePlayedRef.current = true
-      const url = getLoreAudioUrl(gid)
-      console.log('[audio] playLoreAudio: fetch', url)
+      console.log('[audio] playLoreAudio: fetch lore/audio for', gid)
       const tryFallback = () => {
         console.log('[audio] playLoreAudio: using browser TTS fallback, hasText=', !!loreTextForFallback?.trim())
         if (loreTextForFallback?.trim()) {
@@ -182,7 +184,7 @@ export default function GamePage() {
           .then(() => console.log('[audio] playLoreAudio: play() started'))
           .catch(onPlayFailed)
       }
-      fetch(url)
+      fetchLoreAudio(gid)
         .then((r) => {
           console.log('[audio] playLoreAudio: response status=', r.status, r.statusText)
           return r.ok ? r.blob() : null
@@ -244,6 +246,14 @@ export default function GamePage() {
         showStatus('', false)
         setRoom(data)
         setSolvedItemIds(data.solved_item_ids ?? [])
+        if (data.started_at) {
+          setGameStarted(true)
+          setStartUIVisible(false)
+          const startedMs = new Date(data.started_at).getTime()
+          const elapsedSec = Math.floor((Date.now() - startedMs) / 1000)
+          setSecondsLeft(Math.max(0, INITIAL_TIMER_SECONDS - elapsedSec))
+          skipTimerInitRef.current = true
+        }
       })
       .catch((e: ApiError) => {
         setRoomLoading(false)
@@ -264,7 +274,8 @@ export default function GamePage() {
     if (!showTimer) return
     if (!timerStartedRef.current) {
       timerStartedRef.current = true
-      setSecondsLeft(INITIAL_TIMER_SECONDS)
+      if (!skipTimerInitRef.current) setSecondsLeft(INITIAL_TIMER_SECONDS)
+      else skipTimerInitRef.current = false
     }
     const id = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -291,9 +302,11 @@ export default function GamePage() {
   useEffect(() => {
     timeUpSentRef.current = false
     timerStartedRef.current = false
+    skipTimerInitRef.current = false
   }, [gameId])
 
   const onStartClick = useCallback(async () => {
+    if (gameId) startGame(gameId).catch(() => {})
     const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
     const unlockedAudioEl = new Audio(SILENT_WAV)
     unlockedAudioEl.play().catch(() => {})
@@ -346,9 +359,14 @@ export default function GamePage() {
         if (data.event !== 'puzzle_solved') return
         const payload = data as PuzzleSolvedEvent
         setSolvedItemIds((prev) => (prev.includes(payload.item_id) ? prev : [...prev, payload.item_id]))
-        const text = payload.solver_name
-          ? `${payload.solver_name} פתח/ה את ${payload.item_label}. הפתרון: ${payload.answer}`
-          : `${payload.item_label} נפתח/ה. הפתרון: ${payload.answer}`
+        const text =
+          payload.item_id === 'clock_1'
+            ? 'השעון כוון בהצלחה! המערכת מתעוררת.'
+            : payload.item_id === 'board_servers'
+              ? 'לוח הבקרה נפתר. המספר הסודי הוא 3.'
+              : payload.item_id === 'safe_1'
+                ? 'נפתחה הכספת ובתוכה המפתח.'
+                : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
         if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
         setPuzzleSolvedNotification(text)
         puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
@@ -453,6 +471,7 @@ export default function GamePage() {
           aria-hidden={roomReady}
           aria-live="polite"
         >
+          <div className="room-loading-spinner" aria-hidden />
           <p className="room-loading-overlay-text">טוען…</p>
         </div>
       )}
@@ -476,6 +495,11 @@ export default function GamePage() {
       {doorLockedMessage && (
         <div className="door-locked-banner" role="alert">
           הדלת נעולה, עדיין לא השגתם את המפתח לדלת.
+        </div>
+      )}
+      {blockedItemMessage && (
+        <div className="door-locked-banner" role="alert">
+          {blockedItemMessage}
         </div>
       )}
       {status && (
@@ -563,6 +587,11 @@ export default function GamePage() {
                         if (gameId) notifyDoorOpened(gameId).catch(() => {})
                         return
                       }
+                      if (shape.itemId === 'board_servers' && !solvedItemIds.includes('clock_1')) {
+                        setBlockedItemMessage('כוונו את השעון כדי לפתוח את לוח הבקרה.')
+                        setTimeout(() => setBlockedItemMessage(null), 4000)
+                        return
+                      }
                       openTask(item)
                     }
                     if (shape.type === 'polygon') {
@@ -634,8 +663,9 @@ export default function GamePage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="task-modal-title"
+          onClick={closeTaskModal}
         >
-          <div className="modal-content">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2 id="task-modal-title">{selectedItem.label}</h2>
             {selectedPuzzle.backstory != null && selectedPuzzle.backstory !== '' && (
               <p className="modal-backstory modal-text-fullwidth">{selectedPuzzle.backstory}</p>

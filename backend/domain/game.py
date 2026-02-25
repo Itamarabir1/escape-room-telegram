@@ -37,6 +37,7 @@ class GameStateResponse(TypedDict):
     puzzle: NotRequired[PuzzleResponse]  # deprecated: use puzzles
     puzzles: NotRequired[list[PuzzleResponse]]  # one per clickable item
     solved_item_ids: NotRequired[list[str]]  # item_ids with PuzzleStatus.SOLVED in DB
+    started_at: NotRequired[str]  # ISO timestamp when first user clicked "התחל"; used for timer and rejoin
 
 
 class HealthResponse(TypedDict):

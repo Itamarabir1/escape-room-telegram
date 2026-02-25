@@ -7,6 +7,8 @@ Architecture: Task content and correct answers live in backend (Redis game state
 Room image is not generated at runtime; use demo room (items + positions) or a static image later.
 """
 import logging
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import Response
 
@@ -31,12 +33,36 @@ from utils.puzzle import (
     WRONG_MESSAGE,
     normalize_answer,
 )
+from utils.telegram_webapp import get_user_id_from_validated, validate_init_data
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["games"])
 
 GAME_NOT_FOUND_DETAIL = "משחק לא נמצא או שהסתיים."
+PLAYERS_ONLY_DETAIL = "רק מי שנרשם למשחק בקבוצה יכול להיכנס. פתחו את הלינק מההודעה בקבוצה."
+INIT_DATA_REQUIRED_DETAIL = "פתחו את המשחק מתוך הטלגרם (מהלינק שנשלח בקבוצה)."
+
+
+def _get_game_and_require_player(game_id: str, request: Request) -> dict:
+    """Load game and ensure the request is from a registered player (initData + game['players']). Raises 401/403/404."""
+    init_data = request.headers.get("X-Telegram-Init-Data") or ""
+    if not init_data.strip():
+        raise HTTPException(status_code=401, detail=INIT_DATA_REQUIRED_DETAIL)
+    token = config.TELEGRAM_TOKEN or ""
+    validated = validate_init_data(init_data, token)
+    if not validated:
+        raise HTTPException(status_code=401, detail=INIT_DATA_REQUIRED_DETAIL)
+    user_id = get_user_id_from_validated(validated)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail=INIT_DATA_REQUIRED_DETAIL)
+    game = get_game_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    players = game.get("players") or {}
+    if str(user_id) not in players:
+        raise HTTPException(status_code=403, detail=PLAYERS_ONLY_DETAIL)
+    return game
 
 
 def _apply_demo_room(game: dict) -> None:
@@ -54,12 +80,20 @@ def _apply_demo_room(game: dict) -> None:
         game["room_puzzles"][item_id] = dict(p)
 
 
+@router.post("/{game_id}/start")
+async def game_start(game_id: str, request: Request) -> dict:
+    """Called when a user clicks 'התחל'. Records started_at so returning users rejoin with correct timer and no Start button."""
+    game = _get_game_and_require_player(game_id, request)
+    if not game.get("started_at"):
+        game["started_at"] = datetime.now(timezone.utc).isoformat()
+        save_game(game_id, game)
+    return {"ok": True}
+
+
 @router.post("/{game_id}/time_up")
 async def game_time_up(game_id: str, request: Request) -> dict:
     """Called when the frontend timer reaches 0. Ends the game, broadcasts game_over via WebSocket, notifies the Telegram group."""
-    game = get_game_by_id(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    game = _get_game_and_require_player(game_id, request)
     chat_id = game.get("chat_id")
     if chat_id is not None:
         set_finished_at(int(chat_id))
@@ -79,12 +113,9 @@ async def game_time_up(game_id: str, request: Request) -> dict:
 
 
 @router.get("/{game_id}")
-async def get_game_state(game_id: str) -> GameStateResponse:
+async def get_game_state(game_id: str, request: Request) -> GameStateResponse:
     """Returns game state for Web App. When no room exists, applies fixed room (items + positions, no image). Image can be added later as static asset."""
-    game = get_game_by_id(game_id)
-    if not game:
-        logger.warning("get_game_state 404 game_id=%s", game_id)
-        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    game = _get_game_and_require_player(game_id, request)
 
     needs_demo = (
         not game.get("room_image_url")
@@ -141,6 +172,8 @@ async def get_game_state(game_id: str) -> GameStateResponse:
             iid for iid, status in room_solved.items()
             if status == PuzzleStatus.SOLVED.value
         ]
+        if game.get("started_at"):
+            out["started_at"] = game["started_at"]
     return out
 
 
@@ -154,13 +187,10 @@ def _needs_demo_room(game: dict) -> bool:
 
 
 @router.get("/{game_id}/lore/audio")
-async def get_lore_audio(game_id: str) -> Response:
+async def get_lore_audio(game_id: str, request: Request) -> Response:
     """Returns TTS audio of the room lore (Hebrew). Requires ELEVEN_API_KEY."""
     logger.info("lore/audio: request game_id=%s", game_id)
-    game = get_game_by_id(game_id)
-    if not game:
-        logger.warning("lore/audio: game not found game_id=%s", game_id)
-        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    game = _get_game_and_require_player(game_id, request)
     lore = game.get("room_lore") or ""
     if not lore:
         if _needs_demo_room(game):
@@ -195,11 +225,9 @@ def _item_label(game: dict, item_id: str) -> str:
 
 
 @router.post("/{game_id}/action")
-async def game_action(game_id: str, payload: dict = Body(default_factory=dict)):
+async def game_action(game_id: str, request: Request, payload: dict = Body(default_factory=dict)):
     """Submit a player action (unlock puzzle answer). Validation is server-side; correct answer from Redis (game state)."""
-    game = get_game_by_id(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    game = _get_game_and_require_player(game_id, request)
     item_id = (payload.get("item_id") or "").strip()
     answer = (payload.get("answer") or "").strip()
     solver_name = (payload.get("solver_name") or "").strip() or None
@@ -243,11 +271,9 @@ def _all_unlock_puzzles_solved(game: dict) -> bool:
 
 
 @router.post("/{game_id}/door_opened")
-async def door_opened(game_id: str) -> dict:
+async def door_opened(game_id: str, request: Request) -> dict:
     """Called when a player clicks the door after all puzzles are solved. Broadcasts door_opened to all clients so everyone plays the animation together."""
-    game = get_game_by_id(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+    game = _get_game_and_require_player(game_id, request)
     if not _all_unlock_puzzles_solved(game):
         raise HTTPException(status_code=400, detail="עדיין לא פתרתם את כל החידות בחדר.")
     await broadcast_door_opened(game_id)
