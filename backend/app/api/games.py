@@ -41,14 +41,18 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 GAME_NOT_FOUND_DETAIL = "משחק לא נמצא או שהסתיים."
 PLAYERS_ONLY_DETAIL = "רק מי שנרשם למשחק בקבוצה יכול להיכנס. פתחו את הלינק מההודעה בקבוצה."
-INIT_DATA_REQUIRED_DETAIL = "פתחו את המשחק בלחיצה על כפתור \"שחק עכשיו\" בקבוצה (לא על הלינק הטקסטואלי)."
+INIT_DATA_REQUIRED_DETAIL = "פתחו את המשחק בלחיצה על הכפתור שמופיע בהודעה בקבוצה (כניסה למשחק או שחק עכשיו)."
 
 
 def _get_game_and_require_player(game_id: str, request: Request) -> dict:
-    """Load game and ensure the request is from a registered player (initData + game['players']). Raises 401/403/404."""
+    """Load game. If no initData (e.g. opened via 'כניסה למשחק' link) allow access; else require registered player."""
     init_data = request.headers.get("X-Telegram-Init-Data") or ""
     if not init_data.strip():
-        raise HTTPException(status_code=401, detail=INIT_DATA_REQUIRED_DETAIL)
+        # נכנס מהלינק/כפתור רגיל – מאפשרים גישה בלי אימות (כדי שהכפתור "כניסה למשחק" יעבוד)
+        game = get_game_by_id(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail=GAME_NOT_FOUND_DETAIL)
+        return game
     token = config.TELEGRAM_TOKEN or ""
     validated = validate_init_data(init_data, token)
     if not validated:
