@@ -32,8 +32,13 @@ class Config:
     AWS_REGION: str = os.getenv("AWS_REGION", "eu-north-1")
     AWS_BUCKET_NAME: str = os.getenv("AWS_BUCKET_NAME", "")
 
-    # Redis – live game session (room, items, puzzles). Used when REDIS_URL is set.
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    # Redis – live game session (room, items, puzzles).
+    # Render: use REDIS_URL or REDIS_INTERNAL_URL (injected by Redis addon).
+    REDIS_URL: str = (
+        os.getenv("REDIS_URL")
+        or os.getenv("REDIS_INTERNAL_URL")
+        or "redis://localhost:6379/0"
+    )
 
     # Database – PostgreSQL only (schema in db/schema.sql)
     DATABASE_URL: str = os.getenv(

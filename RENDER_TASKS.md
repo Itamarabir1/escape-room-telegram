@@ -44,35 +44,44 @@ git push
 
 ---
 
-## שלב 3: הגדרת משתני סביבה ב-Render
+## שלב 3: Redis ב-Render (חובה – state קבוע)
 
-1. ב-Render: בחר את השירות (telegram-bot).
-
+1. ב-Render: **Dashboard** → השירות שלך (escape-room-telegram וכו').
 2. בתפריט השמאלי: **Environment**.
+3. **הוספת Redis:**
+   - לחץ **Add Integration** (או **Add New** → **Redis**).
+   - צור Redis instance. Render יזריק אוטומטית משתנה `REDIS_INTERNAL_URL` (או `REDIS_URL`) לשירות שלך.
+4. הקוד תומך גם ב־`REDIS_INTERNAL_URL` (ברירת מחדל של Render) – אין חובה להגדיר `REDIS_URL` ידנית אם הוספת Redis addon.
+5. אם Redis לא הוזן אוטומטית: הוסף משתנה **Key:** `REDIS_URL`, **Value:** ה-URL שמופיע ב-Redis addon (למשל `redis://red-xxxx:6379`).
+6. שמור (Save Changes). Render יעשה Redeploy אוטומטי – הלוג "Redis not available" / "Connection refused" אמור להיעלם.
 
-3. לחץ **Add Environment Variable** והוסף אחד־אחד:
+## שלב 3ב: שאר משתני הסביבה
 
 | Key | Value |
 |-----|--------|
 | `TELEGRAM_TOKEN` | הטוקן שקיבלת מ־@BotFather |
-| `WEBAPP_URL` | הכתובת של השירות (למשל `https://telegram-bot-xxxx.onrender.com`) – **בלי** סלאש בסוף |
-| `REDIS_URL` | (אופציונלי) אם הוספת Redis ב-Render – העתק את ה-URL; אחרת השאר ריק |
+| `WEBAPP_URL` | הכתובת של השירות (למשל `https://escape-room-telegram.onrender.com`) – **בלי** סלאש בסוף |
+| `REDIS_URL` | (אופציונלי) רק אם Redis addon לא הזריק אוטומטית – העתק את ה-URL מ-Redis addon |
 
-4. שמור (Save Changes). Render יעשה Redeploy אוטומטי.
+שמור (Save Changes).
 
 ---
 
-## שלב 4: בדיקה
+## שלב 4: בדיקה מהירה
 
 1. אחרי שה-Deploy מסתיים, פתח בדפדפן:
-   `https://<שם-השירות-שלך>.onrender.com/health`
-   אמור להחזיר משהו כמו: `{"status":"awake","mode":"production"}`.
+   ```
+   https://escape-room-telegram.onrender.com/health
+   ```
+   אמור להחזיר: `{"status":"awake","mode":"production"}` (או דומה).
 
 2. פתח:
-   `https://<שם-השירות-שלך>.onrender.com/game`
+   ```
+   https://escape-room-telegram.onrender.com/game
+   ```
    אמור להיפתח דף המשחק (לא JSON).
 
-3. בטלגרם: פתח את הבוט → התחל משחק בקבוצה → "שחק עכשיו" / הלינק מהבוט – אמור לפתוח את דף המשחק ב-Render.
+3. **בדיקת Redis:** בטלגרם – פתח את הבוט → התחל משחק בקבוצה → "שחק עכשיו" / הלינק מהבוט. אמור לפתוח את דף המשחק ב-Render; אם מופיע "משחק לא נמצא" – וודא ש-Redis addon מחובר ו־REDIS_INTERNAL_URL או REDIS_URL מוגדרים, ואז Redeploy.
 
 ---
 
