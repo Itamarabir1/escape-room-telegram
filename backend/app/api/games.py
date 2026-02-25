@@ -41,7 +41,7 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 GAME_NOT_FOUND_DETAIL = "משחק לא נמצא או שהסתיים."
 PLAYERS_ONLY_DETAIL = "רק מי שנרשם למשחק בקבוצה יכול להיכנס. פתחו את הלינק מההודעה בקבוצה."
-INIT_DATA_REQUIRED_DETAIL = "פתחו את המשחק מתוך הטלגרם (מהלינק שנשלח בקבוצה)."
+INIT_DATA_REQUIRED_DETAIL = "פתחו את המשחק בלחיצה על כפתור \"שחק עכשיו\" בקבוצה (לא על הלינק הטקסטואלי)."
 
 
 def _get_game_and_require_player(game_id: str, request: Request) -> dict:

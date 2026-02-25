@@ -34,27 +34,42 @@ def _game_keyboard(game_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-async def send_game_button_or_link(message, game_id: str, intro: str) -> None:
-    """Sends Web App button and Top 10 button; on Button_type_invalid falls back to plain link."""
+def _game_keyboard_url_fallback(game_id: str) -> InlineKeyboardMarkup:
+    """Fallback: normal URL button (opens in browser) when Web App button is rejected."""
     url = game_page_url(game_id)
-    keyboard = _game_keyboard(game_id)
+    keyboard = [
+        [InlineKeyboardButton("🎮 כניסה למשחק", url=url)],
+        [InlineKeyboardButton("🏆 עשרת הגדולים ביותר", callback_data="top10")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def send_game_button_or_link(message, game_id: str, intro: str) -> None:
+    """Sends Web App button; on failure sends same intro with URL button so there is always a button."""
+    url = game_page_url(game_id)
     try:
-        await message.reply_text(intro, reply_markup=keyboard)
+        await message.reply_text(intro, reply_markup=_game_keyboard(game_id))
     except BadRequest as e:
         err_msg = getattr(e, "message", None) or str(e)
         if "button" in err_msg.lower():
-            await message.reply_text(f"{intro}\n{url}")
+            await message.reply_text(
+                intro + "\n\n(לחץ על הכפתור למטה כדי להיכנס.)",
+                reply_markup=_game_keyboard_url_fallback(game_id),
+            )
         else:
             raise
 
 
 async def send_fallback_game_link(query, chat_data: dict) -> None:
-    """On error: send plain game link only (no button retry)."""
+    """On error: send message with URL button so user still has a button to tap."""
     game_id = chat_data.get("game_id")
     if not game_id:
         await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
         return
-    await query.message.reply_text(f"המשחק מוכן. פתח את הלינק כדי להיכנס:\n{game_page_url(game_id)}")
+    await query.message.reply_text(
+        "המשחק מוכן. לחץ על הכפתור למטה כדי להיכנס:",
+        reply_markup=_game_keyboard_url_fallback(game_id),
+    )
 
 
 # --- Handlers ---
@@ -206,15 +221,17 @@ async def handle_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         safe_name = group_name.replace("*", "•").replace("_", "\\_")[:80]
         await update.message.reply_text(
             f"✅ שם הקבוצה נשמר: **{safe_name}**\n\n"
-            "🎲 ההרשמה נסגרה! לחץ על הכפתור \"שחק עכשיו\" למטה – ייפתח דף המשחק בדפדפן.",
+            "🎲 ההרשמה נסגרה! לחץ על הכפתור למטה כדי להיכנס למשחק.",
             reply_markup=_game_keyboard(game_id),
             parse_mode="Markdown",
         )
     except BadRequest as e:
         err_msg = getattr(e, "message", None) or str(e)
         if "button" in err_msg.lower():
+            game_id = chat_data.get("game_id", "")
             await update.message.reply_text(
-                f"שם הקבוצה נשמר. פתח את המשחק: {game_page_url(chat_data.get('game_id', ''))}"
+                "✅ שם הקבוצה נשמר.\n\nלחץ על הכפתור למטה כדי להיכנס למשחק:",
+                reply_markup=_game_keyboard_url_fallback(game_id),
             )
         else:
             raise

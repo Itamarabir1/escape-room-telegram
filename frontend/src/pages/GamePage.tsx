@@ -21,6 +21,8 @@ const MESSAGES = {
   START_IN_GROUP: 'התחל משחק בקבוצה עם /start_game ולחץ על "שחק עכשיו".',
   GAME_NOT_FOUND: 'משחק לא נמצא או שהסתיים. פתח את הלינק מההודעה של הבוט.',
   LOAD_ERROR: 'שגיאה בטעינת המשחק.',
+  OPEN_VIA_BUTTON:
+    'פתחו את המשחק בלחיצה על כפתור "שחק עכשיו" בקבוצה (לא על הלינק הטקסטואלי).',
 } as const
 
 declare global {
@@ -231,6 +233,11 @@ export default function GamePage() {
   useEffect(() => {
     if (!gameId) {
       showStatus(MESSAGES.START_IN_GROUP, false)
+      return
+    }
+    const initData = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData
+    if (!initData?.trim()) {
+      showStatus(MESSAGES.OPEN_VIA_BUTTON, true)
       return
     }
     setRoomLoading(true)
