@@ -55,8 +55,11 @@ function getPuzzleByItemId(room: GameStateResponse | null, itemId: string): Puzz
 
 const INITIAL_TIMER_SECONDS = 3600 // 01:00:00
 
-/** Door opening video – place file in public/ or set path to your video in images folder */
-const DOOR_VIDEO_SRC = '/door-opening.mp4'
+/** Door opening video – served by backend from images/door_open.mp4 at same base as room image */
+function getDoorVideoSrc(roomImageUrl: string | undefined): string {
+  if (!roomImageUrl) return '/room/door_open.mp4'
+  return roomImageUrl.replace(/escape_room\.png$/i, 'door_open.mp4')
+}
 
 /** Door hotspot bounds in viewBox 0 0 1280 768 for <foreignObject> */
 const DOOR_VIDEO_BOUNDS = { x: 753, y: 289, width: 138, height: 268 }
@@ -108,6 +111,7 @@ export default function GamePage() {
   const timeUpSentRef = useRef(false)
   const skipTimerInitRef = useRef(false)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const doorVideoRef = useRef<HTMLVideoElement | null>(null)
 
   const tg = getTelegramWebApp()
   if (tg.expand) tg.expand()
@@ -363,11 +367,11 @@ export default function GamePage() {
         setSolvedItemIds((prev) => (prev.includes(payload.item_id) ? prev : [...prev, payload.item_id]))
         const text =
           payload.item_id === 'clock_1'
-            ? 'השעון כוון בהצלחה! המערכת מתעוררת.'
+            ? 'השעון כוון בהצלחה'
             : payload.item_id === 'board_servers'
-              ? 'לוח הבקרה נפתר. המספר הסודי הוא 3.'
+              ? 'לוח הבקרה תוקן. מספר הרשתות הסודיות הוא 3'
               : payload.item_id === 'safe_1'
-                ? 'נפתחה הכספת ובתוכה המפתח.'
+                ? 'הכספת נפתחה מצאתם מפתח'
                 : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
         if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
         setPuzzleSolvedNotification(text)
@@ -420,7 +424,9 @@ export default function GamePage() {
     setActionMessage(null)
   }, [])
 
-  const closeTaskModal = useCallback(() => {
+  const closeTaskModal = useCallback((e?: React.MouseEvent | React.PointerEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
     window.speechSynthesis.cancel()
     modalTTSRef.current = null
     setTaskModalOpen(false)
@@ -554,16 +560,18 @@ export default function GamePage() {
                     >
                       <div className="door-video-wrap">
                         <video
+                          ref={doorVideoRef}
                           className="door-video"
-                          src={DOOR_VIDEO_SRC}
+                          src={getDoorVideoSrc(room?.room_image_url)}
                           autoPlay
-                          muted={false}
+                          muted
                           playsInline
                           onEnded={() => {
                             setDoorVideoPlaying(false)
                             const doorItem = roomItems.find((it) => it.id === 'door')
                             if (doorItem) openTask(doorItem)
                           }}
+                          onLoadedData={() => doorVideoRef.current?.play().catch(() => {})}
                         />
                       </div>
                     </foreignObject>
@@ -586,6 +594,7 @@ export default function GamePage() {
                           setTimeout(() => setDoorLockedMessage(false), 4000)
                           return
                         }
+                        setDoorVideoPlaying(true)
                         if (gameId) notifyDoorOpened(gameId).catch(() => {})
                         return
                       }
@@ -678,9 +687,14 @@ export default function GamePage() {
             {selectedPuzzle.type === 'unlock' && (
               <>
                 {selectedPuzzle.encoded_clue != null && (
-                  <p className="modal-clue">
-                    <strong>הקוד במסוף:</strong> <code>{selectedPuzzle.encoded_clue}</code>
-                  </p>
+                  <>
+                    <p className="modal-clue">
+                      <strong>הקוד במסוף:</strong> <code>{selectedPuzzle.encoded_clue}</code>
+                    </p>
+                    {selectedItem.id === 'safe_1' && (
+                      <p className="modal-clue modal-secret-hint">השתמשו גם במספר הסודי</p>
+                    )}
+                  </>
                 )}
                 <input
                   type="text"
@@ -705,7 +719,12 @@ export default function GamePage() {
                   >
                     {actionSubmitting ? 'שולח…' : 'בדוק'}
                   </button>
-                  <button type="button" onClick={closeTaskModal}>
+                  <button
+                    type="button"
+                    className="modal-close-btn"
+                    onClick={closeTaskModal}
+                    onPointerDown={(e) => { e.preventDefault(); closeTaskModal(e) }}
+                  >
                     סגור
                   </button>
                 </div>
@@ -713,7 +732,24 @@ export default function GamePage() {
             )}
             {selectedPuzzle.type === 'examine' && (
               <div className="modal-actions">
-                <button type="button" onClick={closeTaskModal}>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={closeTaskModal}
+                  onPointerDown={(e) => { e.preventDefault(); closeTaskModal(e) }}
+                >
+                  סגור
+                </button>
+              </div>
+            )}
+            {selectedPuzzle.type !== 'unlock' && selectedPuzzle.type !== 'examine' && (
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={closeTaskModal}
+                  onPointerDown={(e) => { e.preventDefault(); closeTaskModal(e) }}
+                >
                   סגור
                 </button>
               </div>

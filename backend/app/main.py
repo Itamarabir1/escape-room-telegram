@@ -47,12 +47,13 @@ async def serve_room_image():
 
 @app.get("/room/door_open.mp4")
 async def serve_door_video():
-    """Serves the door opening video from project images folder (door_open.mp4)."""
-    path = IMAGES_DIR / "door_open.mp4"
-    if not path.exists():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Door video not found. Add images/door_open.mp4")
-    return FileResponse(path, media_type="video/mp4")
+    """Serves the door opening video from project images folder (door_open.mp4 or door-opening.mp4)."""
+    for name in ("door_open.mp4", "door-opening.mp4"):
+        path = IMAGES_DIR / name
+        if path.exists():
+            return FileResponse(path, media_type="video/mp4")
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Door video not found. Add images/door_open.mp4")
 
 
 app.include_router(games_router, prefix="/api")

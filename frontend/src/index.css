@@ -506,6 +506,7 @@ button {
 .modal-backstory {
   margin: 12px 0;
   font-size: 0.95em;
+  white-space: pre-line;
 }
 
 .modal-clue {
@@ -519,6 +520,11 @@ button {
   border-radius: 4px;
   direction: ltr;
   display: inline-block;
+}
+
+.modal-secret-hint {
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 .modal-prompt {
@@ -555,6 +561,14 @@ button {
   gap: 12px;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.modal-actions button,
+.modal-close-btn {
+  min-height: 44px;
+  min-width: 80px;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 /* Game Over – כשהטיימר נגמר */
