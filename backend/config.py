@@ -47,12 +47,12 @@ class Config:
     AWS_REGION: str = os.getenv("AWS_REGION", "eu-north-1")
     AWS_BUCKET_NAME: str = os.getenv("AWS_BUCKET_NAME", "")
 
-    # --- Redis (תיקון ל-Docker) ---
-    # הוספתי בדיקה: אם אנחנו בתוך Docker, נשתמש בשם השירות 'redis'
+    # Redis: ב-Docker Compose מוגדר REDIS_URL=redis://redis:6379/0 ב-compose.
+    # ב-Render: REDIS_INTERNAL_URL או REDIS_URL מ-Redis addon. ברירת מחדל ל-localhost (מקומי בלי Docker).
     REDIS_URL: str = (
-        os.getenv("REDIS_URL") or 
-        os.getenv("REDIS_INTERNAL_URL") or 
-        "redis://redis:6379/0"  # ברירת מחדל ל-Docker
+        os.getenv("REDIS_URL")
+        or os.getenv("REDIS_INTERNAL_URL")
+        or "redis://localhost:6379/0"
     )
 
     # --- Database ---
