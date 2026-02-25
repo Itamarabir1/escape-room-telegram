@@ -46,9 +46,11 @@ services:
     ports:
       - "${PORT:-8000}:8000"
   
+    env_file:
+      - .env
     environment:
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql://${POSTGRES_USER:-escape_user}:${POSTGRES_PASSWORD:-escape_pass}@postgres:5432/${POSTGRES_DB:-escape_room}
+      DATABASE_URL: postgresql://...
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
       WEBAPP_URL: ${WEBAPP_URL:-http://localhost:8000}
       PORT: "8000"
