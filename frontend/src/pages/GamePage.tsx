@@ -70,9 +70,6 @@ function getDoorVideoSrc(roomImageUrl: string | undefined): string {
   return roomImageUrl.replace(/escape_room\.png$/i, 'door_open.mp4')
 }
 
-/** Door hotspot bounds in viewBox 0 0 1280 768 for <foreignObject> */
-const DOOR_VIDEO_BOUNDS = { x: 753, y: 289, width: 138, height: 268 }
-
 /** Hotspot shapes for room image 1280×768 – polygon points and circle (cx, cy, r) */
 const ROOM_HOTSPOT_SHAPES: Array<
   | { itemId: string; type: 'polygon'; points: string }
@@ -109,10 +106,12 @@ export default function GamePage() {
   const [startUIVisible, setStartUIVisible] = useState(true)
   const [loreNarrationActive, setLoreNarrationActive] = useState(false)
   const panoramaRef = useRef<HTMLDivElement>(null)
+  const scienceLabPanoramaRef = useRef<HTMLDivElement>(null)
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const [solvedItemIds, setSolvedItemIds] = useState<string[]>([])
   const [doorVideoPlaying, setDoorVideoPlaying] = useState(false)
   const [showScienceLabRoom, setShowScienceLabRoom] = useState(false)
+  const [scienceLabImageLoaded, setScienceLabImageLoaded] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState(false)
   const [blockedItemMessage, setBlockedItemMessage] = useState<string | null>(null)
   const lorePlayedRef = useRef(false)
@@ -380,7 +379,7 @@ export default function GamePage() {
           payload.item_id === 'clock_1'
             ? 'השעון כוון בהצלחה'
             : payload.item_id === 'board_servers'
-              ? 'מספר הרשתות הסודיות בחדר הוא 3'
+              ? 'לוח הבקרה נפתח בהצלחה'
               : payload.item_id === 'safe_1'
                 ? 'הכספת נפתחה בהצלחה בתוכה יש מפתח'
                 : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
@@ -424,6 +423,26 @@ export default function GamePage() {
       clearTimeout(t2)
     }
   }, [room?.room_image_url, room?.room_items?.length, roomImageLoaded])
+
+  useEffect(() => {
+    if (!showScienceLabRoom || !scienceLabImageLoaded) return
+    const el = scienceLabPanoramaRef.current
+    if (!el) return
+    const centerScroll = () => {
+      const container = scienceLabPanoramaRef.current
+      if (!container) return
+      const maxScroll = container.scrollWidth - container.clientWidth
+      container.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
+    }
+    centerScroll()
+    requestAnimationFrame(() => requestAnimationFrame(centerScroll))
+    const t1 = setTimeout(centerScroll, 100)
+    const t2 = setTimeout(centerScroll, 400)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [showScienceLabRoom, scienceLabImageLoaded])
 
   const unlockItemIds = (room && getPuzzles(room).filter((p) => p.type === 'unlock').map((p) => p.item_id)) ?? []
   const allPuzzlesSolved = unlockItemIds.length > 0 && unlockItemIds.every((id) => solvedItemIds.includes(id))
@@ -617,42 +636,6 @@ export default function GamePage() {
                   alt="חדר בריחה"
                   onLoad={onRoomImageLoad}
                 />
-                {doorVideoPlaying && gameStarted && (
-                  <svg
-                    className="room-door-video-svg"
-                    viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
-                    preserveAspectRatio="xMidYMid meet"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-                    aria-hidden
-                  >
-                    <foreignObject
-                      x={DOOR_VIDEO_BOUNDS.x}
-                      y={DOOR_VIDEO_BOUNDS.y}
-                      width={DOOR_VIDEO_BOUNDS.width}
-                      height={DOOR_VIDEO_BOUNDS.height}
-                    >
-                      <div className="door-video-wrap">
-                        <video
-                          ref={doorVideoRef}
-                          className="door-video"
-                          src={getDoorVideoSrc(room?.room_image_url)}
-                          autoPlay
-                          muted
-                          playsInline
-                          onEnded={() => {
-                            setDoorVideoPlaying(false)
-                            setShowScienceLabRoom(true)
-                          }}
-                          onError={() => {
-                            setDoorVideoPlaying(false)
-                            setShowScienceLabRoom(true)
-                          }}
-                          onLoadedData={() => doorVideoRef.current?.play().catch(() => {})}
-                        />
-                      </div>
-                    </foreignObject>
-                  </svg>
-                )}
                 <svg
                   className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''} ${taskModalOpen ? 'room-hotspots-svg--modal-open' : ''}`}
                   viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
@@ -744,14 +727,40 @@ export default function GamePage() {
           )}
         </div>
       )}
+      {doorVideoPlaying && gameStarted && (
+        <div className="door-video-fullscreen" role="presentation">
+          <video
+            ref={doorVideoRef}
+            className="door-video-fullscreen-video"
+            src={getDoorVideoSrc(room?.room_image_url)}
+            autoPlay
+            muted
+            playsInline
+            onEnded={() => {
+              setDoorVideoPlaying(false)
+              setScienceLabImageLoaded(false)
+              setShowScienceLabRoom(true)
+            }}
+            onError={() => {
+              setDoorVideoPlaying(false)
+              setScienceLabImageLoaded(false)
+              setShowScienceLabRoom(true)
+            }}
+            onLoadedData={() => doorVideoRef.current?.play().catch(() => {})}
+          />
+        </div>
+      )}
       {showScienceLabRoom && (
         <div className="science-lab-room" role="region" aria-label="חדר המעבדה">
-          <div className="science-lab-room-scroll">
-            <img
-              src="/room/science_lab_room.png"
-              alt="מעבדה"
-              className="science-lab-room-image"
-            />
+          <div className="room-wrapper science-lab-room-panorama" ref={scienceLabPanoramaRef}>
+            <div className="room-container">
+              <img
+                src="/room/science_lab_room.png"
+                alt="מעבדה"
+                className="room-image"
+                onLoad={() => setScienceLabImageLoaded(true)}
+              />
+            </div>
           </div>
         </div>
       )}

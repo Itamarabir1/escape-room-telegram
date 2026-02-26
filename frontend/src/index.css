@@ -93,7 +93,7 @@ body.game-has-room .room-situation.room-situation-below-btn {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 20;
+  z-index: 50;
   padding: 10px 14px;
   background: rgba(0, 0, 0, 0.75);
   color: #fff;
@@ -333,30 +333,26 @@ button {
   tap-highlight-color: transparent;
 }
 
-/* Door opening video – overlays door area in viewBox coordinates */
-.room-door-video-svg {
-  z-index: 5;
-  pointer-events: none;
+/* Door opening video – full screen overlay when user clicks the door */
+.door-video-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background: #000;
 }
 
-.door-video-wrap {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.door-video {
+.door-video-fullscreen-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.door-video::-webkit-media-controls {
+.door-video-fullscreen-video::-webkit-media-controls {
   display: none !important;
 }
 
-/* Science lab room – shown after door video; scrollable, 50% viewport height, fade-in */
+/* Science lab room – same layout as first room: horizontal scroll, 100vh, start in middle */
 .science-lab-room {
   position: fixed;
   inset: 0;
@@ -365,28 +361,9 @@ button {
   animation: science-lab-fade-in 0.5s ease-out forwards;
 }
 
-.science-lab-room-scroll {
-  height: 50vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-}
-
-.science-lab-room-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.science-lab-room-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-}
-
-.science-lab-room-image {
-  display: block;
+.science-lab-room .room-wrapper {
   width: 100%;
-  height: auto;
-  vertical-align: top;
+  height: 100%;
 }
 
 @keyframes science-lab-fade-in {
