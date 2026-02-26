@@ -60,7 +60,7 @@ class Group(Base):
     group_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     group_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     current_room_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("Rooms.room_id", ondelete="RESTRICT", onupdate="CASCADE"), default=1, nullable=True
+        Integer, ForeignKey("Rooms.room_id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=True
     )
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
