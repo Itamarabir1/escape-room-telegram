@@ -568,8 +568,10 @@ button {
 
 .modal-actions button,
 .modal-close-btn {
-  min-height: 44px;
-  min-width: 80px;
+  min-height: 38px;
+  min-width: 72px;
+  padding: 6px 12px;
+  font-size: 0.95em;
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -583,9 +585,10 @@ button {
 
 /* In Telegram WebView, real <button> often doesn't receive touch/click; div with handlers does. */
 .modal-close-btn-wrapper {
-  min-height: 44px;
-  min-width: 80px;
-  padding: 10px 16px;
+  min-height: 38px;
+  min-width: 72px;
+  padding: 6px 12px;
+  font-size: 0.95em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
