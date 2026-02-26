@@ -737,9 +737,12 @@ export default function GamePage() {
             muted
             playsInline
             onEnded={() => {
-              setDoorVideoPlaying(false)
-              setScienceLabImageLoaded(false)
-              setShowScienceLabRoom(true)
+              const transitionAfterEnd = () => {
+                setDoorVideoPlaying(false)
+                setScienceLabImageLoaded(false)
+                setShowScienceLabRoom(true)
+              }
+              setTimeout(transitionAfterEnd, 450)
             }}
             onError={() => {
               setDoorVideoPlaying(false)

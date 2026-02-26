@@ -333,10 +333,13 @@ button {
   tap-highlight-color: transparent;
 }
 
-/* Door opening video – full screen overlay when user clicks the door */
+/* Door opening video – full screen overlay when user clicks the door. 100dvh = visible viewport on mobile. */
 .door-video-fullscreen {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   z-index: 35;
   background: #000;
 }
@@ -344,6 +347,7 @@ button {
 .door-video-fullscreen-video {
   width: 100%;
   height: 100%;
+  min-height: 100%;
   object-fit: cover;
   display: block;
 }
