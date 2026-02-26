@@ -761,42 +761,51 @@ export default function GamePage() {
                   >
                     {actionSubmitting ? 'שולח…' : 'בדוק'}
                   </button>
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label="סגור"
                     className="modal-close-btn-wrapper"
                     onClick={handleCloseModal}
-                    onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                    onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
+                    onPointerDown={(e) => { e.preventDefault(); handleCloseModal(); }}
+                    onTouchEnd={(e) => { e.preventDefault(); handleCloseModal(); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal(); } }}
                   >
                     סגור
-                  </button>
+                  </div>
                 </div>
               </>
             )}
             {selectedPuzzle.type === 'examine' && (
               <div className="modal-actions">
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="סגור"
                   className="modal-close-btn-wrapper"
                   onClick={handleCloseModal}
-                  onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
+                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal(); }}
+                  onTouchEnd={(e) => { e.preventDefault(); handleCloseModal(); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal(); } }}
                 >
                   סגור
-                </button>
+                </div>
               </div>
             )}
             {selectedPuzzle.type !== 'unlock' && selectedPuzzle.type !== 'examine' && (
               <div className="modal-actions">
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="סגור"
                   className="modal-close-btn-wrapper"
                   onClick={handleCloseModal}
-                  onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
+                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal(); }}
+                  onTouchEnd={(e) => { e.preventDefault(); handleCloseModal(); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal(); } }}
                 >
                   סגור
-                </button>
+                </div>
               </div>
             )}
           </div>
