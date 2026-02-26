@@ -29,6 +29,7 @@ declare global {
   interface Window {
     Telegram?: {
       WebApp?: {
+        version?: string
         ready?: () => void | Promise<void>
         expand?: () => void
         initDataUnsafe?: { user?: { first_name?: string } }
@@ -455,24 +456,44 @@ export default function GamePage() {
   }
   closeModalRef.current = handleCloseModal
 
-  /** Telegram BackButton: when modal is open, show header back button; on press, close modal. */
+  /** Telegram BackButton: when modal is open, show header back button; on press, close modal.
+   * Skip on clients where BackButton is not supported (e.g. WebApp version 6.0), to avoid
+   * overlay/conflict with the in-modal "סגור" button. */
   useEffect(() => {
     const backBtn = window.Telegram?.WebApp?.BackButton
-    if (!backBtn) return
+    const version = window.Telegram?.WebApp?.version ?? ''
+    const backButtonUnsupported = version.startsWith('6.0')
+    if (!backBtn || backButtonUnsupported) return
     if (!taskModalOpen) {
-      backBtn.hide()
+      try {
+        backBtn.hide()
+      } catch {
+        // BackButton not supported on this client
+      }
       return
     }
     const onBack = () => {
       closeModalRef.current?.()
-      backBtn.hide()
-      backBtn.offClick(onBack)
+      try {
+        backBtn.hide()
+        backBtn.offClick(onBack)
+      } catch {
+        // ignore
+      }
     }
-    backBtn.onClick(onBack)
-    backBtn.show()
+    try {
+      backBtn.onClick(onBack)
+      backBtn.show()
+    } catch {
+      return
+    }
     return () => {
-      backBtn.hide()
-      backBtn.offClick(onBack)
+      try {
+        backBtn.hide()
+        backBtn.offClick(onBack)
+      } catch {
+        // ignore
+      }
     }
   }, [taskModalOpen])
 
@@ -761,60 +782,39 @@ export default function GamePage() {
                   >
                     {actionSubmitting ? 'שולח…' : 'בדוק'}
                   </button>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-label="סגור"
+                  <button
+                    type="button"
                     className="modal-close-btn-wrapper"
+                    aria-label="סגור"
                     onClick={handleCloseModal}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleCloseModal();
-                      }
-                    }}
                   >
                     סגור
-                  </div>
+                  </button>
                 </div>
               </>
             )}
             {selectedPuzzle.type === 'examine' && (
               <div className="modal-actions">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="סגור"
+                <button
+                  type="button"
                   className="modal-close-btn-wrapper"
+                  aria-label="סגור"
                   onClick={handleCloseModal}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleCloseModal();
-                    }
-                  }}
                 >
                   סגור
-                </div>
+                </button>
               </div>
             )}
             {selectedPuzzle.type !== 'unlock' && selectedPuzzle.type !== 'examine' && (
               <div className="modal-actions">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="סגור"
+                <button
+                  type="button"
                   className="modal-close-btn-wrapper"
+                  aria-label="סגור"
                   onClick={handleCloseModal}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleCloseModal();
-                    }
-                  }}
                 >
                   סגור
-                </div>
+                </button>
               </div>
             )}
           </div>
