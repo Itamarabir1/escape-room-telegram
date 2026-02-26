@@ -151,14 +151,35 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     show_alert=True,
                 )
             return
-        # Ask only the user who clicked for the group name, then we'll finish registration
-        chat_id = update.effective_chat.id if update.effective_chat else 0
-        chat_data["awaiting_group_name"] = user.id
-        await query.answer()
-        name = user.first_name or "חבר/ה בקבוצה"
-        await query.message.reply_text(
-            f"👋 {name}, מה השם של הקבוצה? כתוב כאן בקבוצה (רק אתה צריך לענות)."
-        )
+        # Use the real Telegram group/channel name (chat title) instead of asking the user
+        chat = update.effective_chat
+        chat_id = chat.id if chat else 0
+        group_name = (chat.title or "קבוצה").strip() if chat else "קבוצה"
+        if not group_name:
+            group_name = "קבוצה"
+        now = datetime.now(timezone.utc)
+        upsert_group(chat_id, group_name=group_name[:100], started_at=now)
+        try:
+            game_id = finish_registration(chat_id, chat_data)
+            await query.answer()
+            safe_name = group_name.replace("*", "•").replace("_", "\\_")[:80]
+            await query.message.reply_text(
+                f"✅ **{safe_name}** – ההרשמה נסגרה!\n\nלחץ על הכפתור למטה כדי להיכנס למשחק.",
+                reply_markup=_game_keyboard(game_id),
+                parse_mode="Markdown",
+            )
+        except BadRequest as e:
+            err_msg = getattr(e, "message", None) or str(e)
+            if "button" in err_msg.lower():
+                game_id = chat_data.get("game_id", "")
+                await query.answer()
+                await query.message.reply_text(
+                    "✅ ההרשמה נסגרה! לחץ על הכפתור למטה כדי להיכנס למשחק:",
+                    reply_markup=_game_keyboard_url_fallback(game_id),
+                )
+            else:
+                await query.answer()
+                raise
         return
 
     elif query.data == "top10":
@@ -200,41 +221,12 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def handle_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle group name reply after 'כולם פה' – only the user who clicked should answer."""
+    """Handle text in group: only process when expecting group name for /start_game flow (legacy)."""
     chat_data = context.chat_data
-    awaiting = chat_data.get("awaiting_group_name")
-    if awaiting is None:
+    if chat_data.get("awaiting_group_name") is None:
         return
-    user = update.message.from_user
-    if not user or user.id != awaiting:
-        return
-    group_name = (update.message.text or "").strip()
-    if not group_name:
-        await update.message.reply_text("נא לכתוב שם קבוצה (טקסט קצר).")
-        return
-    chat_id = update.effective_chat.id if update.effective_chat else 0
+    # No longer asking for group name – we use the Telegram chat title. Ignore so no stale state.
     del chat_data["awaiting_group_name"]
-    now = datetime.now(timezone.utc)
-    upsert_group(chat_id, group_name=group_name, started_at=now)
-    try:
-        game_id = finish_registration(chat_id, chat_data)
-        safe_name = group_name.replace("*", "•").replace("_", "\\_")[:80]
-        await update.message.reply_text(
-            f"✅ שם הקבוצה נשמר: **{safe_name}**\n\n"
-            "🎲 ההרשמה נסגרה! לחץ על הכפתור למטה כדי להיכנס למשחק.",
-            reply_markup=_game_keyboard(game_id),
-            parse_mode="Markdown",
-        )
-    except BadRequest as e:
-        err_msg = getattr(e, "message", None) or str(e)
-        if "button" in err_msg.lower():
-            game_id = chat_data.get("game_id", "")
-            await update.message.reply_text(
-                "✅ שם הקבוצה נשמר.\n\nלחץ על הכפתור למטה כדי להיכנס למשחק:",
-                reply_markup=_game_keyboard_url_fallback(game_id),
-            )
-        else:
-            raise
 
 
 async def end_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

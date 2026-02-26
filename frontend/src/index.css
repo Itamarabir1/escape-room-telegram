@@ -581,6 +581,29 @@ button {
   z-index: 1;
 }
 
+/* In Telegram WebView, real <button> often doesn't receive touch/click; div with handlers does. */
+.modal-close-btn-wrapper {
+  min-height: 44px;
+  min-width: 80px;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 8px;
+  border: 1px solid var(--tg-button-outline-color, rgba(0, 0, 0, 0.2));
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.modal-close-btn-wrapper:focus {
+  outline: 2px solid var(--tg-button);
+  outline-offset: 2px;
+}
+
 /* Game Over – כשהטיימר נגמר */
 .game-over-overlay {
   position: fixed;

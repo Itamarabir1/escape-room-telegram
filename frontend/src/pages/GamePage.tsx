@@ -445,6 +445,18 @@ export default function GamePage() {
     setActionMessage(null)
   }
 
+  /** Wrapper for close: in Telegram WebView button events often don't fire; tapping the wrapper div does. */
+  const closeButtonWrapperProps = {
+    className: 'modal-close-btn-wrapper',
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: handleCloseModal,
+    onMouseDown: (e: React.MouseEvent) => { e.preventDefault(); handleCloseModal() },
+    onPointerDown: (e: React.PointerEvent) => { e.preventDefault(); handleCloseModal() },
+    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); handleCloseModal() },
+    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal() } },
+  }
+
   const submitUnlockAnswer = useCallback(() => {
     if (!gameId || !selectedItem) return
     const puzzle = getPuzzleByItemId(room, selectedItem.id)
@@ -729,42 +741,18 @@ export default function GamePage() {
                   >
                     {actionSubmitting ? 'שולח…' : 'בדוק'}
                   </button>
-                  <button
-                    type="button"
-                    className="modal-close-btn"
-                    onClick={handleCloseModal}
-                    onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                    onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                  >
-                    סגור
-                  </button>
+                  <div {...closeButtonWrapperProps}>סגור</div>
                 </div>
               </>
             )}
             {selectedPuzzle.type === 'examine' && (
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="modal-close-btn"
-                  onClick={handleCloseModal}
-                  onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                >
-                  סגור
-                </button>
+                <div {...closeButtonWrapperProps}>סגור</div>
               </div>
             )}
             {selectedPuzzle.type !== 'unlock' && selectedPuzzle.type !== 'examine' && (
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="modal-close-btn"
-                  onClick={handleCloseModal}
-                  onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
-                >
-                  סגור
-                </button>
+                <div {...closeButtonWrapperProps}>סגור</div>
               </div>
             )}
           </div>
