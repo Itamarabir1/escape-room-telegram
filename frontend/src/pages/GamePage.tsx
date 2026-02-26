@@ -114,6 +114,8 @@ export default function GamePage() {
   const [doorVideoPlaying, setDoorVideoPlaying] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState(false)
   const [blockedItemMessage, setBlockedItemMessage] = useState<string | null>(null)
+  const [debugLogs, setDebugLogs] = useState<string[]>([])
+  const log = (msg: string) => setDebugLogs((prev) => [...prev.slice(-5), msg])
   const lorePlayedRef = useRef(false)
 
   const timerStartedRef = useRef(false)
@@ -535,6 +537,22 @@ export default function GamePage() {
 
   return (
     <div className="game-container">
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          background: 'rgba(0,0,0,0.85)',
+          color: 'lime',
+          fontSize: '14px',
+          zIndex: 99999,
+          padding: '8px',
+        }}
+      >
+        {debugLogs.map((l, i) => (
+          <div key={i}>{l}</div>
+        ))}
+      </div>
       {showLoadingOverlay && (
         <div
           className={`room-loading-overlay ${roomReady ? 'room-loading-overlay--hidden' : ''}`}
@@ -778,15 +796,6 @@ export default function GamePage() {
                 <div className="modal-actions">
                   <button
                     type="button"
-                    className="modal-close-btn-wrapper"
-                    aria-label="סגור"
-                    onClick={handleCloseModal}
-                    onTouchEnd={() => { handleCloseModal(); }}
-                  >
-                    סגור
-                  </button>
-                  <button
-                    type="button"
                     onClick={submitUnlockAnswer}
                     disabled={actionSubmitting}
                   >
@@ -796,8 +805,14 @@ export default function GamePage() {
                     type="button"
                     className="modal-close-btn-wrapper"
                     aria-label="סגור"
-                    onClick={handleCloseModal}
-                    onTouchEnd={() => { handleCloseModal(); }}
+                    onTouchStart={() => log('touchstart')}
+                    onTouchEnd={() => log('touchend')}
+                    onPointerDown={() => log('pointerdown')}
+                    onPointerUp={() => log('pointerup')}
+                    onClick={() => {
+                      log('click!')
+                      handleCloseModal()
+                    }}
                   >
                     סגור
                   </button>
@@ -810,8 +825,14 @@ export default function GamePage() {
                   type="button"
                   className="modal-close-btn-wrapper"
                   aria-label="סגור"
-                  onClick={handleCloseModal}
-                  onTouchEnd={() => { handleCloseModal(); }}
+                  onTouchStart={() => log('touchstart')}
+                  onTouchEnd={() => log('touchend')}
+                  onPointerDown={() => log('pointerdown')}
+                  onPointerUp={() => log('pointerup')}
+                  onClick={() => {
+                    log('click!')
+                    handleCloseModal()
+                  }}
                 >
                   סגור
                 </button>
@@ -823,8 +844,14 @@ export default function GamePage() {
                   type="button"
                   className="modal-close-btn-wrapper"
                   aria-label="סגור"
-                  onClick={handleCloseModal}
-                  onTouchEnd={() => { handleCloseModal(); }}
+                  onTouchStart={() => log('touchstart')}
+                  onTouchEnd={() => log('touchend')}
+                  onPointerDown={() => log('pointerdown')}
+                  onPointerUp={() => log('pointerup')}
+                  onClick={() => {
+                    log('click!')
+                    handleCloseModal()
+                  }}
                 >
                   סגור
                 </button>
