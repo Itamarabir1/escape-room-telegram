@@ -643,7 +643,8 @@ export default function GamePage() {
                   className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''}`}
                   viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
                   preserveAspectRatio="xMidYMid meet"
-                  aria-hidden
+                  aria-label="מפת חדר עם אזורי לחיצה"
+                  role="group"
                 >
                   {ROOM_HOTSPOT_SHAPES.map((shape) => {
                     const item = roomItems.find((it) => it.id === shape.itemId)
