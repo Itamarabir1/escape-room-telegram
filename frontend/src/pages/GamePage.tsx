@@ -738,10 +738,9 @@ export default function GamePage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="task-modal-title"
-          onClick={closeTaskModal}
-          onPointerDown={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); handleCloseModal() } }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeTaskModal(); }}
         >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2 id="task-modal-title">{selectedItem.label}</h2>
             {selectedPuzzle.backstory != null && selectedPuzzle.backstory !== '' && (
               <p className="modal-backstory modal-text-fullwidth">{selectedPuzzle.backstory}</p>
