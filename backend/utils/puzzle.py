@@ -18,6 +18,7 @@ SUCCESS_MESSAGE = "הכספת נפתחה!"
 # הודעות הצלחה לפי פריט (כשפותרים חידת unlock). אם item_id לא ברשימה – משתמשים ב-SUCCESS_MESSAGE.
 ITEM_SUCCESS_MESSAGES: dict[str, str] = {
     "clock_1": "השעון כוון בהצלחה",
+    "board_servers": "לוח הבקרה נפתח!",
     "safe_1": "הכספת נפתחה בהצלחה, בתוכה יש מפתח",
 }
 
