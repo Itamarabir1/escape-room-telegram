@@ -767,9 +767,12 @@ export default function GamePage() {
                     aria-label="סגור"
                     className="modal-close-btn-wrapper"
                     onClick={handleCloseModal}
-                    onPointerDown={(e) => { e.preventDefault(); handleCloseModal(); }}
-                    onTouchEnd={(e) => { e.preventDefault(); handleCloseModal(); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal(); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCloseModal();
+                      }
+                    }}
                   >
                     סגור
                   </div>
@@ -784,9 +787,12 @@ export default function GamePage() {
                   aria-label="סגור"
                   className="modal-close-btn-wrapper"
                   onClick={handleCloseModal}
-                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal(); }}
-                  onTouchEnd={(e) => { e.preventDefault(); handleCloseModal(); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleCloseModal();
+                    }
+                  }}
                 >
                   סגור
                 </div>
@@ -800,9 +806,12 @@ export default function GamePage() {
                   aria-label="סגור"
                   className="modal-close-btn-wrapper"
                   onClick={handleCloseModal}
-                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal(); }}
-                  onTouchEnd={(e) => { e.preventDefault(); handleCloseModal(); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleCloseModal();
+                    }
+                  }}
                 >
                   סגור
                 </div>

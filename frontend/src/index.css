@@ -585,6 +585,9 @@ button {
 
 /* In Telegram WebView, real <button> often doesn't receive touch/click; div with handlers does. */
 .modal-close-btn-wrapper {
+  position: relative;
+  z-index: 9999;
+  pointer-events: auto;
   min-height: 38px;
   min-width: 72px;
   padding: 6px 12px;
