@@ -778,6 +778,15 @@ export default function GamePage() {
                 <div className="modal-actions">
                   <button
                     type="button"
+                    className="modal-close-btn-wrapper"
+                    aria-label="סגור"
+                    onClick={handleCloseModal}
+                    onTouchEnd={() => { handleCloseModal(); }}
+                  >
+                    סגור
+                  </button>
+                  <button
+                    type="button"
                     onClick={submitUnlockAnswer}
                     disabled={actionSubmitting}
                   >
