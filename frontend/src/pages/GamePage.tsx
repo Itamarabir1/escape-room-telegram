@@ -112,6 +112,7 @@ export default function GamePage() {
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const [solvedItemIds, setSolvedItemIds] = useState<string[]>([])
   const [doorVideoPlaying, setDoorVideoPlaying] = useState(false)
+  const [showScienceLabRoom, setShowScienceLabRoom] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState(false)
   const [blockedItemMessage, setBlockedItemMessage] = useState<string | null>(null)
   const lorePlayedRef = useRef(false)
@@ -514,8 +515,14 @@ export default function GamePage() {
       ...(solverName ? { solver_name: solverName } : {}),
     })
       .then((res) => {
+        const successText =
+          selectedItem?.id === 'board_servers'
+            ? 'לוח הבקרה נפתח!'
+            : selectedItem?.id === 'safe_1'
+              ? 'הכספת נפתחה!'
+              : res.message ?? 'נפתר בהצלחה!'
         setActionMessage({
-          text: res.message ?? (res.correct ? 'הכספת נפתחה!' : 'סיסמה שגויה.'),
+          text: res.message ?? (res.correct ? successText : 'סיסמה שגויה.'),
           isSuccess: !!res.correct,
         })
         if (res.correct) {
@@ -634,8 +641,11 @@ export default function GamePage() {
                           playsInline
                           onEnded={() => {
                             setDoorVideoPlaying(false)
-                            const doorItem = roomItems.find((it) => it.id === 'door')
-                            if (doorItem) openTask(doorItem)
+                            setShowScienceLabRoom(true)
+                          }}
+                          onError={() => {
+                            setDoorVideoPlaying(false)
+                            setShowScienceLabRoom(true)
                           }}
                           onLoadedData={() => doorVideoRef.current?.play().catch(() => {})}
                         />
@@ -732,6 +742,17 @@ export default function GamePage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {showScienceLabRoom && (
+        <div className="science-lab-room" role="region" aria-label="חדר המעבדה">
+          <div className="science-lab-room-scroll">
+            <img
+              src="/room/science_lab_room.png"
+              alt="מעבדה"
+              className="science-lab-room-image"
+            />
+          </div>
         </div>
       )}
       {taskModalOpen && selectedItem && selectedPuzzle && (

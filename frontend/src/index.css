@@ -320,6 +320,13 @@ button {
 .room-hotspots-svg .room-hotspot-shape {
   pointer-events: auto;
   cursor: pointer;
+  outline: none;
+}
+
+.room-hotspots-svg .room-hotspot-shape:focus,
+.room-hotspots-svg .room-hotspot-shape:focus-visible,
+.room-hotspots-svg .room-hotspot-shape:active {
+  outline: none;
 }
 
 /* Door opening video – overlays door area in viewBox coordinates */
@@ -343,6 +350,48 @@ button {
 
 .door-video::-webkit-media-controls {
   display: none !important;
+}
+
+/* Science lab room – shown after door video; scrollable, 50% viewport height, fade-in */
+.science-lab-room {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #0a0a0a;
+  animation: science-lab-fade-in 0.5s ease-out forwards;
+}
+
+.science-lab-room-scroll {
+  height: 50vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.science-lab-room-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.science-lab-room-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.science-lab-room-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+}
+
+@keyframes science-lab-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .door-locked-banner {

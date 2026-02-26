@@ -59,6 +59,19 @@ async def serve_door_video():
     raise HTTPException(status_code=404, detail="Door video not found. Add images/door_open.mp4")
 
 
+@app.get("/room/science_lab_room.png")
+async def serve_science_lab_room():
+    """Serves the science lab room image (shown after door opens). Uses science_lab_room.png or latest science_lab_room_*.png."""
+    path = IMAGES_DIR / "science_lab_room.png"
+    if not path.exists():
+        candidates = sorted(IMAGES_DIR.glob("science_lab_room_*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+        path = candidates[0] if candidates else None
+    if not path or not path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Science lab image not found. Add images/science_lab_room.png")
+    return FileResponse(path, media_type="image/png")
+
+
 @app.get("/audio/lore.wav")
 async def serve_lore_audio():
     """Serves the static lore audio (backend/audio/lore.wav). Used when user clicks התחל."""
