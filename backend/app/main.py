@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from telegram import Update
 
 from config import config
+from db import init_db
 from app.api.games import router as games_router
 from app.api.ws_game import router as ws_game_router
 from app.routes.pages import router as pages_router
@@ -94,6 +95,7 @@ async def telegram_webhook(request: Request):
 
 @app.on_event("startup")
 async def startup_event():
+    init_db()
     tg_app = create_telegram_app()
     app.state.tg_app = tg_app
     await run_telegram(tg_app)
