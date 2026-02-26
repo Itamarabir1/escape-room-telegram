@@ -28,6 +28,7 @@ from services.group_repository import set_finished_at
 from services.ws_registry import broadcast_door_opened, broadcast_game_over, broadcast_puzzle_solved
 from utils.puzzle import (
     SAFE_BACKSTORY,
+    ITEM_SUCCESS_MESSAGES,
     PROMPT_TEXT,
     SUCCESS_MESSAGE,
     WRONG_MESSAGE,
@@ -231,7 +232,7 @@ async def game_action(game_id: str, request: Request, payload: dict = Body(defau
     accepted = [correct_answer] + [str(a).strip() for a in aliases if a is not None and str(a).strip()]
     normalized_user = normalize_answer(answer)
     is_correct = any(normalize_answer(a) == normalized_user for a in accepted)
-    message = SUCCESS_MESSAGE if is_correct else WRONG_MESSAGE
+    message = (ITEM_SUCCESS_MESSAGES.get(item_id) or SUCCESS_MESSAGE) if is_correct else WRONG_MESSAGE
     if is_correct:
         room_solved = game.get("room_solved") or {}
         room_solved[item_id] = PuzzleStatus.SOLVED.value

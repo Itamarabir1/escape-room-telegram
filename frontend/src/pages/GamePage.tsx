@@ -734,6 +734,7 @@ export default function GamePage() {
                     className="modal-close-btn"
                     onClick={handleCloseModal}
                     onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
+                    onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
                   >
                     סגור
                   </button>
@@ -747,6 +748,7 @@ export default function GamePage() {
                   className="modal-close-btn"
                   onClick={handleCloseModal}
                   onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
+                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
                 >
                   סגור
                 </button>
@@ -759,6 +761,7 @@ export default function GamePage() {
                   className="modal-close-btn"
                   onClick={handleCloseModal}
                   onMouseDown={(e) => { e.preventDefault(); handleCloseModal() }}
+                  onPointerDown={(e) => { e.preventDefault(); handleCloseModal() }}
                 >
                   סגור
                 </button>

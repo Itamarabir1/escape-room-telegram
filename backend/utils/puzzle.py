@@ -14,6 +14,13 @@ SAFE_BACKSTORY = (
 PROMPT_TEXT = "הכניסו את סיסמת הפריצה לכספת:"
 
 SUCCESS_MESSAGE = "הכספת נפתחה!"
+
+# הודעות הצלחה לפי פריט (כשפותרים חידת unlock). אם item_id לא ברשימה – משתמשים ב-SUCCESS_MESSAGE.
+ITEM_SUCCESS_MESSAGES: dict[str, str] = {
+    "clock_1": "השעון כוון בהצלחה",
+    "safe_1": "הכספת נפתחה בהצלחה, בתוכה יש מפתח",
+}
+
 WRONG_MESSAGE = "סיסמה שגויה, נסה שוב."
 
 

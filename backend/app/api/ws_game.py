@@ -33,9 +33,13 @@ async def ws_games(websocket: WebSocket, game_id: str) -> None:
     user_id = get_user_id_from_validated(validated) if validated else None
     game = get_game_by_id(game_id)
     if not game:
-        return  # reject handshake (no accept)
+        await websocket.accept()
+        await websocket.close(code=4404)  # Not Found
+        return
     if user_id is None or str(user_id) not in (game.get("players") or {}):
-        return  # reject handshake – only registered players
+        await websocket.accept()
+        await websocket.close(code=4403)  # Forbidden
+        return
     await websocket.accept()
     register(game_id, websocket)
     try:
