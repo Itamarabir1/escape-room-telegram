@@ -645,6 +645,7 @@ export default function GamePage() {
                   preserveAspectRatio="xMidYMid meet"
                   aria-label="מפת חדר עם אזורי לחיצה"
                   role="group"
+                  style={{ pointerEvents: taskModalOpen ? 'none' : 'auto' }}
                 >
                   {ROOM_HOTSPOT_SHAPES.map((shape) => {
                     const item = roomItems.find((it) => it.id === shape.itemId)
