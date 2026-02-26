@@ -372,6 +372,12 @@ button {
   cursor: default;
 }
 
+/* When modal is open, SVG and all hotspot shapes must not capture pointer – so modal buttons receive taps */
+.room-hotspots-svg.room-hotspots-svg--modal-open,
+.room-hotspots-svg.room-hotspots-svg--modal-open .room-hotspot-shape {
+  pointer-events: none !important;
+}
+
 /* Wrapper so room can be scrolled horizontally on phone (panorama) */
 .room-placeholder-wrap {
   width: 100%;
@@ -473,6 +479,7 @@ button {
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  isolation: isolate;
 }
 
 .modal-content {

@@ -640,7 +640,7 @@ export default function GamePage() {
                   </svg>
                 )}
                 <svg
-                  className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''}`}
+                  className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''} ${taskModalOpen ? 'room-hotspots-svg--modal-open' : ''}`}
                   viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
                   preserveAspectRatio="xMidYMid meet"
                   aria-label="מפת חדר עם אזורי לחיצה"
@@ -789,6 +789,7 @@ export default function GamePage() {
                     className="modal-close-btn-wrapper"
                     aria-label="סגור"
                     onClick={handleCloseModal}
+                    onTouchEnd={() => { handleCloseModal(); }}
                   >
                     סגור
                   </button>
@@ -802,6 +803,7 @@ export default function GamePage() {
                   className="modal-close-btn-wrapper"
                   aria-label="סגור"
                   onClick={handleCloseModal}
+                  onTouchEnd={() => { handleCloseModal(); }}
                 >
                   סגור
                 </button>
@@ -814,6 +816,7 @@ export default function GamePage() {
                   className="modal-close-btn-wrapper"
                   aria-label="סגור"
                   onClick={handleCloseModal}
+                  onTouchEnd={() => { handleCloseModal(); }}
                 >
                   סגור
                 </button>
