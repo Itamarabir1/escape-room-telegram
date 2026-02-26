@@ -33,6 +33,14 @@ declare global {
         expand?: () => void
         initDataUnsafe?: { user?: { first_name?: string } }
         sendData?: (data: string) => void
+        BackButton?: {
+          show: () => void
+          hide: () => void
+          onClick: (callback: () => void) => void
+          offClick: (callback: () => void) => void
+        }
+        onEvent?: (eventType: string, callback: () => void) => void
+        offEvent?: (eventType: string, callback: () => void) => void
       }
     }
   }
@@ -112,6 +120,7 @@ export default function GamePage() {
   const skipTimerInitRef = useRef(false)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
   const doorVideoRef = useRef<HTMLVideoElement | null>(null)
+  const closeModalRef = useRef<() => void>(() => {})
 
   const tg = getTelegramWebApp()
   if (tg.expand) tg.expand()
@@ -444,15 +453,39 @@ export default function GamePage() {
     setUnlockAnswer('')
     setActionMessage(null)
   }
+  closeModalRef.current = handleCloseModal
 
-  /** Wrapper for close: in Telegram WebView button events often don't fire; tapping the wrapper div does. */
+  /** Telegram BackButton: when modal is open, show header back button; on press, close modal. */
+  useEffect(() => {
+    const backBtn = window.Telegram?.WebApp?.BackButton
+    if (!backBtn) return
+    if (!taskModalOpen) {
+      backBtn.hide()
+      return
+    }
+    const onBack = () => {
+      closeModalRef.current?.()
+      backBtn.hide()
+      backBtn.offClick(onBack)
+    }
+    backBtn.onClick(onBack)
+    backBtn.show()
+    return () => {
+      backBtn.hide()
+      backBtn.offClick(onBack)
+    }
+  }, [taskModalOpen])
+
+  /** Wrapper for close: in Telegram WebView button events often don't fire; capture phase and overlay tap help. */
   const closeButtonWrapperProps = {
     className: 'modal-close-btn-wrapper',
     role: 'button' as const,
     tabIndex: 0,
     onClick: handleCloseModal,
+    onClickCapture: handleCloseModal,
     onMouseDown: (e: React.MouseEvent) => { e.preventDefault(); handleCloseModal() },
     onPointerDown: (e: React.PointerEvent) => { e.preventDefault(); handleCloseModal() },
+    onPointerDownCapture: (e: React.PointerEvent) => { e.preventDefault(); handleCloseModal() },
     onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); handleCloseModal() },
     onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCloseModal() } },
   }
@@ -697,8 +730,9 @@ export default function GamePage() {
           aria-modal="true"
           aria-labelledby="task-modal-title"
           onClick={closeTaskModal}
+          onPointerDown={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); handleCloseModal() } }}
         >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
             <h2 id="task-modal-title">{selectedItem.label}</h2>
             {selectedPuzzle.backstory != null && selectedPuzzle.backstory !== '' && (
               <p className="modal-backstory modal-text-fullwidth">{selectedPuzzle.backstory}</p>
