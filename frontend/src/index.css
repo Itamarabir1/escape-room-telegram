@@ -321,12 +321,16 @@ button {
   pointer-events: auto;
   cursor: pointer;
   outline: none;
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
 }
 
 .room-hotspots-svg .room-hotspot-shape:focus,
 .room-hotspots-svg .room-hotspot-shape:focus-visible,
 .room-hotspots-svg .room-hotspot-shape:active {
   outline: none;
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
 }
 
 /* Door opening video – overlays door area in viewBox coordinates */

@@ -26,6 +26,7 @@ app = FastAPI(title="Telegram Bot - חדר בריחה")
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _BACKEND_DIR = _REPO_ROOT / "backend"
 IMAGES_DIR = _REPO_ROOT / "images"
+ROOM_ASSETS_DIR = _BACKEND_DIR / "room_assets"
 AUDIO_DIR = _BACKEND_DIR / "audio"
 FRONTEND_DIST = _REPO_ROOT / "frontend" / "dist"
 
@@ -50,26 +51,29 @@ async def serve_room_image():
 
 @app.get("/room/door_open.mp4")
 async def serve_door_video():
-    """Serves the door opening video from project images folder (door_open.mp4 or door-opening.mp4)."""
-    for name in ("door_open.mp4", "door-opening.mp4"):
-        path = IMAGES_DIR / name
-        if path.exists():
-            return FileResponse(path, media_type="video/mp4")
+    """Serves the door opening video from backend/room_assets or images/ (door_open.mp4 or door-opening.mp4)."""
+    for base in (ROOM_ASSETS_DIR, IMAGES_DIR):
+        for name in ("door_open.mp4", "door-opening.mp4"):
+            path = base / name
+            if path.exists():
+                return FileResponse(path, media_type="video/mp4")
     from fastapi import HTTPException
-    raise HTTPException(status_code=404, detail="Door video not found. Add images/door_open.mp4")
+    raise HTTPException(status_code=404, detail="Door video not found. Add backend/room_assets/door_open.mp4")
 
 
 @app.get("/room/science_lab_room.png")
 async def serve_science_lab_room():
-    """Serves the science lab room image (shown after door opens). Uses science_lab_room.png or latest science_lab_room_*.png."""
-    path = IMAGES_DIR / "science_lab_room.png"
-    if not path.exists():
-        candidates = sorted(IMAGES_DIR.glob("science_lab_room_*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
-        path = candidates[0] if candidates else None
-    if not path or not path.exists():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Science lab image not found. Add images/science_lab_room.png")
-    return FileResponse(path, media_type="image/png")
+    """Serves the science lab room image from backend/room_assets or images/ (science_lab_room.png or science_lab.png)."""
+    for base in (ROOM_ASSETS_DIR, IMAGES_DIR):
+        for name in ("science_lab_room.png", "science_lab.png"):
+            path = base / name
+            if path.exists():
+                return FileResponse(path, media_type="image/png")
+        candidates = sorted(base.glob("science_lab_room_*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if candidates:
+            return FileResponse(candidates[0], media_type="image/png")
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Science lab image not found. Add backend/room_assets/science_lab_room.png")
 
 
 @app.get("/audio/lore.wav")
