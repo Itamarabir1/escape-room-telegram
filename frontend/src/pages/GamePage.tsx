@@ -78,10 +78,10 @@ const ROOM_HOTSPOT_SHAPES: Array<
   | { itemId: string; type: 'polygon'; points: string }
   | { itemId: string; type: 'circle'; cx: number; cy: number; r: number }
 > = [
-  { itemId: 'door', type: 'polygon', points: '753,289 889,291 891,427 853,470 849,555 755,557' },
-  { itemId: 'safe_1', type: 'polygon', points: '965,523 1131,527 1187,543 1184,650 965,651' },
+  { itemId: 'door', type: 'polygon', points: '753,289 890,295 895,475 850,475 849,555 755,557' },
+  { itemId: 'safe_1', type: 'polygon', points: '965,523 1131,527 1185,725 990,700 961,669' },
   { itemId: 'clock_1', type: 'circle', cx: 649, cy: 248, r: 41 },
-  { itemId: 'board_servers', type: 'polygon', points: '7,38 351,236 346,560 1,653' },
+  { itemId: 'board_servers', type: 'polygon', points: '7,38 351,236 346,560 1,723' },
 ]
 
 function formatTimer(seconds: number): string {
@@ -114,8 +114,6 @@ export default function GamePage() {
   const [doorVideoPlaying, setDoorVideoPlaying] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState(false)
   const [blockedItemMessage, setBlockedItemMessage] = useState<string | null>(null)
-  const [debugLogs, setDebugLogs] = useState<string[]>([])
-  const log = (msg: string) => setDebugLogs((prev) => [...prev.slice(-5), msg])
   const lorePlayedRef = useRef(false)
 
   const timerStartedRef = useRef(false)
@@ -541,22 +539,6 @@ export default function GamePage() {
 
   return (
     <div className="game-container">
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          background: 'rgba(0,0,0,0.85)',
-          color: 'lime',
-          fontSize: '14px',
-          zIndex: 99999,
-          padding: '8px',
-        }}
-      >
-        {debugLogs.map((l, i) => (
-          <div key={i}>{l}</div>
-        ))}
-      </div>
       {showLoadingOverlay && (
         <div
           className={`room-loading-overlay ${roomReady ? 'room-loading-overlay--hidden' : ''}`}
@@ -696,9 +678,8 @@ export default function GamePage() {
                         <polygon
                           key={shape.itemId}
                           points={shape.points}
-                          fill="rgba(255,200,0,0.15)"
-                          stroke="rgba(255,200,0,0.6)"
-                          strokeWidth={2}
+                          fill="transparent"
+                          stroke="transparent"
                           className="room-hotspot-shape"
                           onClick={handleClick}
                           onKeyDown={(e) => e.key === 'Enter' && handleClick()}
@@ -714,9 +695,8 @@ export default function GamePage() {
                         cx={shape.cx}
                         cy={shape.cy}
                         r={shape.r}
-                        fill="rgba(255,200,0,0.15)"
-                        stroke="rgba(255,200,0,0.6)"
-                        strokeWidth={2}
+                        fill="transparent"
+                        stroke="transparent"
                         className="room-hotspot-shape"
                         onClick={handleClick}
                         onKeyDown={(e) => e.key === 'Enter' && handleClick()}
@@ -809,14 +789,8 @@ export default function GamePage() {
                     type="button"
                     className="modal-close-btn-wrapper"
                     aria-label="סגור"
-                    onTouchStart={() => log('touchstart')}
-                    onTouchEnd={() => log('touchend')}
-                    onPointerDown={() => log('pointerdown')}
-                    onPointerUp={() => log('pointerup')}
-                    onClick={() => {
-                      log('click!')
-                      handleCloseModal()
-                    }}
+                    onClick={handleCloseModal}
+                    onTouchEnd={() => { handleCloseModal(); }}
                   >
                     סגור
                   </button>
@@ -829,14 +803,8 @@ export default function GamePage() {
                   type="button"
                   className="modal-close-btn-wrapper"
                   aria-label="סגור"
-                  onTouchStart={() => log('touchstart')}
-                  onTouchEnd={() => log('touchend')}
-                  onPointerDown={() => log('pointerdown')}
-                  onPointerUp={() => log('pointerup')}
-                  onClick={() => {
-                    log('click!')
-                    handleCloseModal()
-                  }}
+                  onClick={handleCloseModal}
+                  onTouchEnd={() => { handleCloseModal(); }}
                 >
                   סגור
                 </button>
@@ -848,14 +816,8 @@ export default function GamePage() {
                   type="button"
                   className="modal-close-btn-wrapper"
                   aria-label="סגור"
-                  onTouchStart={() => log('touchstart')}
-                  onTouchEnd={() => log('touchend')}
-                  onPointerDown={() => log('pointerdown')}
-                  onPointerUp={() => log('pointerup')}
-                  onClick={() => {
-                    log('click!')
-                    handleCloseModal()
-                  }}
+                  onClick={handleCloseModal}
+                  onTouchEnd={() => { handleCloseModal(); }}
                 >
                   סגור
                 </button>

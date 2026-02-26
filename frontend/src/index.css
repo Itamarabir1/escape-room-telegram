@@ -320,12 +320,6 @@ button {
 .room-hotspots-svg .room-hotspot-shape {
   pointer-events: auto;
   cursor: pointer;
-  transition: fill 0.2s;
-}
-
-.room-hotspots-svg .room-hotspot-shape:hover,
-.room-hotspots-svg .room-hotspot-shape:focus-visible {
-  fill: rgba(255, 200, 0, 0.35);
 }
 
 /* Door opening video – overlays door area in viewBox coordinates */
