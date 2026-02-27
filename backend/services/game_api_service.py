@@ -51,6 +51,8 @@ def build_game_state_response(game_id: str, game: dict[str, Any]) -> GameStateRe
         "players": players_str,
         "game_active": game.get("game_active", True),
     }
+    if game.get("door_opened"):
+        out["door_opened"] = bool(game.get("door_opened"))
     if game.get("room_image_url") or game.get("room_items"):
         if game.get("room_image_url"):
             out["room_image_url"] = game["room_image_url"]

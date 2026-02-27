@@ -49,4 +49,8 @@ async def handle_door_opened(game_id: str, game: dict[str, Any]) -> None:
     """Ensure all unlock puzzles are solved, then broadcast door_opened. Raises HTTPException(400) if not ready."""
     if not all_unlock_puzzles_solved(game):
         raise HTTPException(status_code=400, detail=DOOR_NOT_READY_DETAIL)
+    # Persist that the door was opened so late joiners / re-opened WebApps
+    # can resume directly in the second room (science lab view).
+    game["door_opened"] = True
+    save_game(game_id, game)
     await broadcast_door_opened(game_id)

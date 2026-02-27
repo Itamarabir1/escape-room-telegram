@@ -223,6 +223,13 @@ export default function GamePage() {
         showStatus('', false)
         setRoom(data)
         setSolvedItemIds(data.solved_item_ids ?? [])
+        // If the door was already opened in this game (persisted on backend),
+        // resume directly in the second room (science lab) without replaying the video.
+        if (data.door_opened) {
+          setDoorVideoPlaying(false)
+          setScienceLabImageLoaded(false)
+          setShowScienceLabRoom(true)
+        }
         if (data.started_at) {
           setGameStarted(true)
           setStartUIVisible(false)

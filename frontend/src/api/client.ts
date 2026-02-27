@@ -57,6 +57,8 @@ export interface GameStateResponse {
   solved_item_ids?: string[]
   /** ISO timestamp when first user clicked "התחל"; used for timer and rejoin */
   started_at?: string
+  /** True when door animation was already triggered; used to resume in second room. */
+  door_opened?: boolean
 }
 
 /** Room canvas size – larger than screen so user scrolls left/right (panorama) */
