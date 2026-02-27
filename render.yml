@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: escape-room-telegram
+    runtime: docker
+    repo: https://github.com/Itamarabir1/escape-room-telegram
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: escape-room-telegram-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: escape-room-telegram-redis
+          type: redis
+          property: connectionString
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: WEBAPP_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+      - key: BUCKET_NAME
+        sync: false
+
+databases:
+  - name: escape-room-telegram-postgres
+    plan: free
+    databaseName: escape_room_db
+
+  - name: escape-room-telegram-redis
+    plan: free
