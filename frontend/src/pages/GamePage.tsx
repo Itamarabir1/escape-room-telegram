@@ -435,10 +435,9 @@ export default function GamePage() {
 
   /** Inline close handler so the button always works (e.g. in Telegram WebView where events can be unreliable). */
   const handleCloseModal = () => {
-    try {
-      window.speechSynthesis?.cancel()
-    } catch {
-      // ignore – speechSynthesis may be unavailable or throw in some WebViews
+    const synth = window.speechSynthesis
+    if (synth && document.hasFocus?.() && (synth.speaking || synth.pending)) {
+      synth.cancel()
     }
     modalTTSRef.current = null
     setTaskModalOpen(false)
