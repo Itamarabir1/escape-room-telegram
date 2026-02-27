@@ -2,6 +2,8 @@
 
 בוט טלגרם עם Web App (FastAPI) לחדר בריחה.
 
+מבנה הפרויקט (Backend + Frontend): **`backend/ARCHITECTURE.md`**. חוזה API: **`backend/docs/API_CONTRACT.md`**.
+
 ## פיתוח מקומי
 
 כדי שהכל ירוץ אצלך בלי Render (טעינה מהירה, ללא המתנה ל-deploy):

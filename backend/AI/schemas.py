@@ -1,6 +1,12 @@
 # pyright: reportMissingImports=false
+"""
+Pydantic schemas for AI-generated room (e.g. future dynamic room creation).
+Not used at runtime; API and game state use domain/game.py (TypedDict) as source of truth.
+Kept for reference / future use.
+"""
 from pydantic import BaseModel, Field
 from typing import List
+
 
 class RoomItem(BaseModel):
     id: str

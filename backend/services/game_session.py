@@ -99,6 +99,7 @@ def end_game_chat(chat_data: dict[str, Any]) -> None:
     chat_data["game_active"] = False
     chat_data["players"] = {}
     chat_data.pop("registration_msg_id", None)
+    chat_data.pop("started_by_user_id", None)
 
 
 def end_game_by_id(game_id: str) -> None:

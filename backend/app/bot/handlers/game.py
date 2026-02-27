@@ -77,10 +77,15 @@ async def send_fallback_game_link(query, chat_data: dict) -> None:
 
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_data = context.chat_data
+    starter_id = update.message.from_user.id if update.message and update.message.from_user else None
+    if starter_id is not None:
+        chat_data["started_by_user_id"] = starter_id
     if is_game_active(chat_data):
         game_id = chat_data.get("game_id")
         if game_id and get_game_by_id(game_id) is None:
             end_game_chat(chat_data)
+            if starter_id is not None:
+                chat_data["started_by_user_id"] = starter_id
         else:
             await update.message.reply_text("המשחק כבר התחיל! אי אפשר להירשם שוב כרגע. ✋")
             return
@@ -205,9 +210,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_data = context.chat_data
     for new_user in update.message.new_chat_members:
         if new_user.is_bot:
             continue
+        if is_game_active(chat_data):
+            game_id = chat_data.get("game_id")
+            if game_id:
+                await send_game_button_or_link(
+                    update.message,
+                    game_id,
+                    f"אהלן {new_user.first_name}! יש משחק פעיל בקבוצה. לחץ על הכפתור למטה כדי להצטרף:",
+                )
+                return
         keyboard = [
             [
                 InlineKeyboardButton("כן ✅", callback_data="join_game"),
@@ -233,6 +248,11 @@ async def end_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_data = context.chat_data
     if not is_game_active(chat_data):
         await update.message.reply_text("אין משחק פעיל כרגע שאפשר לסיים! 😊")
+        return
+    starter_id = chat_data.get("started_by_user_id")
+    user_id = update.message.from_user.id if update.message and update.message.from_user else None
+    if starter_id is not None and user_id is not None and user_id != starter_id:
+        await update.message.reply_text("רק מי שהתחיל את המשחק (מי שכתב /start_game) יכול לסיים אותו. ✋")
         return
     chat_id = update.effective_chat.id if update.effective_chat else None
     if chat_id is not None:

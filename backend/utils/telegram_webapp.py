@@ -57,13 +57,32 @@ def validate_init_data(init_data: str, bot_token: str) -> dict | None:
     return vals
 
 
-def get_user_id_from_validated(validated: dict) -> int | None:
-    """Extract Telegram user id from validated initData payload (user field is JSON string)."""
+def _user_dict_from_validated(validated: dict) -> dict | None:
+    """Parse and return the 'user' object from validated initData, or None."""
     user_str = validated.get("user") or ""
     if not user_str:
         return None
     try:
-        user = json.loads(user_str)
-        return int(user.get("id"))
+        return json.loads(user_str)
     except (json.JSONDecodeError, TypeError, ValueError):
         return None
+
+
+def get_user_id_from_validated(validated: dict) -> int | None:
+    """Extract Telegram user id from validated initData payload (user field is JSON string)."""
+    user = _user_dict_from_validated(validated)
+    if not user:
+        return None
+    try:
+        return int(user.get("id"))
+    except (TypeError, ValueError):
+        return None
+
+
+def get_user_first_name_from_validated(validated: dict) -> str:
+    """Extract first_name from validated initData; used for late-join player display."""
+    user = _user_dict_from_validated(validated)
+    if not user:
+        return "שחקן"
+    name = (user.get("first_name") or "").strip()
+    return name or "שחקן"

@@ -10,20 +10,18 @@ import {
   type ApiError,
   type GameStateResponse,
   type PuzzleSolvedEvent,
-  type PuzzleResponse,
   type RoomItemResponse,
-  DEMO_ROOM_WIDTH,
-  DEMO_ROOM_HEIGHT,
 } from '../api/client'
+import { MESSAGES } from '../constants/messages'
+import { INITIAL_TIMER_SECONDS } from '../constants/roomHotspots'
+import { getPuzzleByItemId, getPuzzles } from '../utils/gameHelpers'
+import { Banners } from '../components/Banners'
+import { DoorVideoOverlay } from '../components/DoorVideoOverlay'
+import { RoomView } from '../components/RoomView'
+import { ScienceLabRoom } from '../components/ScienceLabRoom'
+import { StartUI } from '../components/StartUI'
+import { TaskModal } from '../components/TaskModal'
 import '../index.css'
-
-const MESSAGES = {
-  START_IN_GROUP: 'התחל משחק בקבוצה עם /start_game ולחץ על "שחק עכשיו".',
-  GAME_NOT_FOUND: 'משחק לא נמצא או שהסתיים. פתח את הלינק מההודעה של הבוט.',
-  LOAD_ERROR: 'שגיאה בטעינת המשחק.',
-  OPEN_VIA_BUTTON:
-    'פתחו את המשחק בלחיצה על הכפתור שמופיע בהודעה בקבוצה (כניסה למשחק / שחק עכשיו).',
-} as const
 
 declare global {
   interface Window {
@@ -49,43 +47,6 @@ declare global {
 
 function getTelegramWebApp() {
   return window.Telegram?.WebApp ?? {}
-}
-
-function getPuzzles(room: GameStateResponse | null): PuzzleResponse[] {
-  if (!room) return []
-  if (room.puzzles && room.puzzles.length > 0) return room.puzzles
-  if (room.puzzle) return [{ ...room.puzzle, type: room.puzzle.type ?? 'unlock' }]
-  return []
-}
-
-function getPuzzleByItemId(room: GameStateResponse | null, itemId: string): PuzzleResponse | undefined {
-  return getPuzzles(room).find((p) => p.item_id === itemId)
-}
-
-const INITIAL_TIMER_SECONDS = 3600 // 01:00:00
-
-/** Door opening video – served by backend from images/door_open.mp4 at same base as room image */
-function getDoorVideoSrc(roomImageUrl: string | undefined): string {
-  if (!roomImageUrl) return '/room/door_open.mp4'
-  return roomImageUrl.replace(/escape_room\.png$/i, 'door_open.mp4')
-}
-
-/** Hotspot shapes for room image 1280×768 – polygon points and circle (cx, cy, r) */
-const ROOM_HOTSPOT_SHAPES: Array<
-  | { itemId: string; type: 'polygon'; points: string }
-  | { itemId: string; type: 'circle'; cx: number; cy: number; r: number }
-> = [
-  { itemId: 'door', type: 'polygon', points: '753,289 890,295 895,475 850,475 849,555 755,557' },
-  { itemId: 'safe_1', type: 'polygon', points: '965,523 1131,527 1185,725 990,700 961,669' },
-  { itemId: 'clock_1', type: 'circle', cx: 649, cy: 248, r: 41 },
-  { itemId: 'board_servers', type: 'polygon', points: '7,38 351,236 346,560 1,723' },
-]
-
-function formatTimer(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':')
 }
 
 export default function GamePage() {
@@ -563,6 +524,50 @@ export default function GamePage() {
   const roomReady = !roomLoading && (hasImage ? roomImageLoaded : true)
   const showLoadingOverlay = showRoomSection || roomLoading
 
+  const handleHotspotClick = useCallback(
+    (params: {
+      item: RoomItemResponse
+      shapeItemId: string
+      allPuzzlesSolved: boolean
+      solvedItemIds: string[]
+    }) => {
+      const { item, shapeItemId, allPuzzlesSolved: allSolved, solvedItemIds: solved } = params
+      if (!gameStarted) return
+      if (shapeItemId === 'door') {
+        if (!allSolved) {
+          setDoorLockedMessage(true)
+          setTimeout(() => setDoorLockedMessage(false), 4000)
+          return
+        }
+        setDoorVideoPlaying(true)
+        if (gameId) notifyDoorOpened(gameId).catch(() => {})
+        return
+      }
+      if (shapeItemId === 'board_servers' && !solved.includes('clock_1')) {
+        setBlockedItemMessage('כוונו את השעון כדי לפתוח את לוח הבקרה.')
+        setTimeout(() => setBlockedItemMessage(null), 4000)
+        return
+      }
+      openTask(item)
+    },
+    [gameStarted, gameId, openTask]
+  )
+
+  const handleDoorVideoEnded = useCallback(() => {
+    const transitionAfterEnd = () => {
+      setDoorVideoPlaying(false)
+      setScienceLabImageLoaded(false)
+      setShowScienceLabRoom(true)
+    }
+    setTimeout(transitionAfterEnd, 450)
+  }, [])
+
+  const handleDoorVideoError = useCallback(() => {
+    setDoorVideoPlaying(false)
+    setScienceLabImageLoaded(false)
+    setShowScienceLabRoom(true)
+  }, [])
+
   return (
     <div className="game-container">
       {showLoadingOverlay && (
@@ -575,289 +580,65 @@ export default function GamePage() {
           <p className="room-loading-overlay-text">טוען…</p>
         </div>
       )}
-      {gameOver && (
-        <div className="game-over-overlay" role="alert">
-          <h2 className="game-over-title">Game Over</h2>
-          <p className="game-over-text">הזמן נגמר. המשחק הסתיים.</p>
-          <p className="game-over-hint">כתבו /start_game בקבוצה כדי להתחיל מחדש.</p>
-        </div>
-      )}
-      {showTimer && !gameOver && (
-        <div className="room-timer" aria-live="polite">
-          {formatTimer(secondsLeft)}
-        </div>
-      )}
-      {puzzleSolvedNotification && (
-        <div className="puzzle-solved-banner" role="alert">
-          {puzzleSolvedNotification}
-        </div>
-      )}
-      {doorLockedMessage && (
-        <div className="door-locked-banner" role="alert">
-          הדלת נעולה, עדיין לא השגתם את המפתח לדלת.
-        </div>
-      )}
-      {blockedItemMessage && (
-        <div className="door-locked-banner" role="alert">
-          {blockedItemMessage}
-        </div>
-      )}
-      {status && (
-        <p className={statusError ? 'error' : 'status'} id="game-status">
-          {status}
-        </p>
-      )}
+      <Banners
+        showTimer={showTimer}
+        gameOver={gameOver}
+        secondsLeft={secondsLeft}
+        puzzleSolvedNotification={puzzleSolvedNotification}
+        doorLockedMessage={doorLockedMessage}
+        blockedItemMessage={blockedItemMessage}
+        status={status}
+        statusError={statusError}
+      />
       {showRoomSection && roomReady && startUIVisible && (
-        <div className="room-start-ui">
-          <button
-            type="button"
-            className="room-start-btn"
-            onClick={onStartClick}
-            disabled={loreNarrationActive}
-            aria-label={loreNarrationActive ? 'מקריא את הסיפור' : 'התחל את המשחק'}
-          >
-            {loreNarrationActive ? 'מקריא…' : 'התחל'}
-          </button>
-          {situationText && (
-            <p className="room-situation room-situation-below-btn" aria-live="polite">
-              {situationText}
-            </p>
-          )}
-        </div>
+        <StartUI
+          situationText={situationText}
+          loreNarrationActive={loreNarrationActive}
+          onStartClick={onStartClick}
+        />
       )}
-      {showRoomSection && !roomLoading && (
-        <div className={`room-section ${roomReady ? 'room-section--ready' : ''}`}>
-          {hasImage ? (
-            <div className="room-wrapper" ref={panoramaRef}>
-              <div className="room-container">
-                <img
-                  src={room!.room_image_url}
-                  className="room-image"
-                  alt="חדר בריחה"
-                  onLoad={onRoomImageLoad}
-                />
-                <svg
-                  className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''} ${taskModalOpen ? 'room-hotspots-svg--modal-open' : ''}`}
-                  viewBox={`0 0 ${room?.room_image_width ?? 1280} ${room?.room_image_height ?? 768}`}
-                  preserveAspectRatio="xMidYMid meet"
-                  aria-label="מפת חדר עם אזורי לחיצה"
-                  role="group"
-                  style={{ pointerEvents: taskModalOpen ? 'none' : 'auto' }}
-                >
-                  {ROOM_HOTSPOT_SHAPES.map((shape) => {
-                    const item = roomItems.find((it) => it.id === shape.itemId)
-                    if (!item) return null
-                    const handleClick = () => {
-                      if (!gameStarted) return
-                      if (shape.itemId === 'door') {
-                        if (!allPuzzlesSolved) {
-                          setDoorLockedMessage(true)
-                          setTimeout(() => setDoorLockedMessage(false), 4000)
-                          return
-                        }
-                        setDoorVideoPlaying(true)
-                        if (gameId) notifyDoorOpened(gameId).catch(() => {})
-                        return
-                      }
-                      if (shape.itemId === 'board_servers' && !solvedItemIds.includes('clock_1')) {
-                        setBlockedItemMessage('כוונו את השעון כדי לפתוח את לוח הבקרה.')
-                        setTimeout(() => setBlockedItemMessage(null), 4000)
-                        return
-                      }
-                      openTask(item)
-                    }
-                    if (shape.type === 'polygon') {
-                      return (
-                        <polygon
-                          key={shape.itemId}
-                          points={shape.points}
-                          fill="transparent"
-                          stroke="transparent"
-                          className="room-hotspot-shape"
-                          onClick={handleClick}
-                          onKeyDown={(e) => e.key === 'Enter' && handleClick()}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={item.label}
-                        />
-                      )
-                    }
-                    return (
-                      <circle
-                        key={shape.itemId}
-                        cx={shape.cx}
-                        cy={shape.cy}
-                        r={shape.r}
-                        fill="transparent"
-                        stroke="transparent"
-                        className="room-hotspot-shape"
-                        onClick={handleClick}
-                        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={item.label}
-                      />
-                    )
-                  })}
-                </svg>
-              </div>
-            </div>
-          ) : (
-            <div className={`room-placeholder-wrap ${!gameStarted ? 'room-hotspots-disabled' : ''}`}>
-              <div
-                className="room-placeholder"
-                style={{ width: DEMO_ROOM_WIDTH, height: DEMO_ROOM_HEIGHT }}
-              >
-                <p className="room-placeholder-label">לחץ על הפריטים – גלול ימינה/שמאלה לראות את כל החדר</p>
-                {roomItems.map((it) => (
-                  <button
-                    key={it.id}
-                    type="button"
-                    className="room-item-hotspot"
-                    style={{ left: it.x, top: it.y }}
-                    onClick={() => gameStarted && openTask(it)}
-                    title={it.label}
-                    disabled={!gameStarted}
-                  >
-                    {it.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      {showRoomSection && !roomLoading && room && (
+        <RoomView
+          room={room}
+          roomReady={roomReady}
+          hasImage={hasImage}
+          roomItems={roomItems}
+          gameStarted={gameStarted}
+          taskModalOpen={taskModalOpen}
+          panoramaRef={panoramaRef}
+          onRoomImageLoad={onRoomImageLoad}
+          onHotspotClick={handleHotspotClick}
+          openTask={openTask}
+          solvedItemIds={solvedItemIds}
+          allPuzzlesSolved={allPuzzlesSolved}
+        />
       )}
       {doorVideoPlaying && gameStarted && (
-        <div className="door-video-fullscreen" role="presentation">
-          <video
-            ref={doorVideoRef}
-            className="door-video-fullscreen-video"
-            src={getDoorVideoSrc(room?.room_image_url)}
-            autoPlay
-            muted
-            playsInline
-            onEnded={() => {
-              const transitionAfterEnd = () => {
-                setDoorVideoPlaying(false)
-                setScienceLabImageLoaded(false)
-                setShowScienceLabRoom(true)
-              }
-              setTimeout(transitionAfterEnd, 450)
-            }}
-            onError={() => {
-              setDoorVideoPlaying(false)
-              setScienceLabImageLoaded(false)
-              setShowScienceLabRoom(true)
-            }}
-            onLoadedData={() => doorVideoRef.current?.play().catch(() => {})}
-          />
-        </div>
+        <DoorVideoOverlay
+          roomImageUrl={room?.room_image_url}
+          videoRef={doorVideoRef}
+          onEnded={handleDoorVideoEnded}
+          onError={handleDoorVideoError}
+        />
       )}
       {showScienceLabRoom && (
-        <div className="science-lab-room" role="region" aria-label="חדר המעבדה">
-          <div className="room-wrapper science-lab-room-panorama" ref={scienceLabPanoramaRef}>
-            <div className="room-container">
-              <img
-                src="/room/science_lab_room.png"
-                alt="מעבדה"
-                className="room-image"
-                onLoad={() => setScienceLabImageLoaded(true)}
-              />
-            </div>
-          </div>
-        </div>
+        <ScienceLabRoom
+          panoramaRef={scienceLabPanoramaRef}
+          onImageLoad={() => setScienceLabImageLoaded(true)}
+        />
       )}
       {taskModalOpen && selectedItem && selectedPuzzle && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="task-modal-title"
-          onClick={(e) => { if (e.target === e.currentTarget) closeTaskModal(); }}
-        >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 id="task-modal-title">{selectedItem.label}</h2>
-            {selectedPuzzle.backstory != null && selectedPuzzle.backstory !== '' && (
-              <p className="modal-backstory modal-text-fullwidth">{selectedPuzzle.backstory}</p>
-            )}
-            {selectedPuzzle.prompt_text != null && selectedPuzzle.prompt_text !== '' && (
-              <p className="modal-prompt modal-text-fullwidth">{selectedPuzzle.prompt_text}</p>
-            )}
-            {selectedPuzzle.type === 'unlock' && (
-              <>
-                {selectedPuzzle.encoded_clue != null && (
-                  <>
-                    <p className="modal-clue">
-                      <strong>הקוד במסוף:</strong> <code>{selectedPuzzle.encoded_clue}</code>
-                    </p>
-                    {selectedItem.id === 'safe_1' && (
-                      <p className="modal-clue modal-secret-hint">השתמשו גם במספר הסודי</p>
-                    )}
-                  </>
-                )}
-                <input
-                  type="text"
-                  className="modal-input"
-                  value={unlockAnswer}
-                  onChange={(e) => setUnlockAnswer(e.target.value)}
-                  placeholder="הכנס את הסיסמה שפיענחת"
-                  dir="ltr"
-                  autoComplete="off"
-                  onKeyDown={(e) => e.key === 'Enter' && submitUnlockAnswer()}
-                />
-                {actionMessage && (
-                  <p className={actionMessage.isSuccess ? 'modal-success' : 'modal-error'}>
-                    {actionMessage.text}
-                  </p>
-                )}
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    onClick={submitUnlockAnswer}
-                    disabled={actionSubmitting}
-                  >
-                    {actionSubmitting ? 'שולח…' : 'בדוק'}
-                  </button>
-                  <button
-                    type="button"
-                    className="modal-close-btn-wrapper"
-                    aria-label="סגור"
-                    onClick={handleCloseModal}
-                    onTouchEnd={() => { handleCloseModal(); }}
-                  >
-                    סגור
-                  </button>
-                </div>
-              </>
-            )}
-            {selectedPuzzle.type === 'examine' && (
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="modal-close-btn-wrapper"
-                  aria-label="סגור"
-                  onClick={handleCloseModal}
-                  onTouchEnd={() => { handleCloseModal(); }}
-                >
-                  סגור
-                </button>
-              </div>
-            )}
-            {selectedPuzzle.type !== 'unlock' && selectedPuzzle.type !== 'examine' && (
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="modal-close-btn-wrapper"
-                  aria-label="סגור"
-                  onClick={handleCloseModal}
-                  onTouchEnd={() => { handleCloseModal(); }}
-                >
-                  סגור
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <TaskModal
+          selectedItem={selectedItem}
+          selectedPuzzle={selectedPuzzle}
+          unlockAnswer={unlockAnswer}
+          setUnlockAnswer={setUnlockAnswer}
+          actionMessage={actionMessage}
+          actionSubmitting={actionSubmitting}
+          submitUnlockAnswer={submitUnlockAnswer}
+          closeTaskModal={closeTaskModal}
+          handleCloseModal={handleCloseModal}
+        />
       )}
     </div>
   )
