@@ -3,7 +3,8 @@ services:
     name: escape-room-telegram
     runtime: docker
     repo: https://github.com/Itamarabir1/escape-room-telegram
-    # קישור לקבוצת המשתנים שיצרת בממשק של Render
+    plan: free
+    # מחבר את כל המשתנים שהגדרת בקבוצה ב-Render (כולל ה-Token)
     envVarGroups:
       - name: escape-room-secrets
     envVars:
@@ -16,19 +17,6 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
-      # המשתנים הבאים יילקחו מה-Environment Group או יוזנו ידנית ב-Render
-      - key: TELEGRAM_TOKEN
-        sync: false
-      - key: WEBAPP_URL
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: ELEVENLABS_API_KEY
-        sync: false
-      - key: HF_TOKEN
-        sync: false
-      - key: BUCKET_NAME
-        sync: false
 
   - type: keyvalue
     name: escape-room-telegram-redis
