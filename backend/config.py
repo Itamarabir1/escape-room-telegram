@@ -38,7 +38,6 @@ class Config:
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     AWS_REGION: str = os.getenv("AWS_REGION", "eu-north-1")
-    AWS_BUCKET_NAME: str = os.getenv("AWS_BUCKET_NAME", "")
 
     # Redis: ב-Docker Compose מוגדר REDIS_URL=redis://redis:6379/0 ב-compose.
     # ב-Render: REDIS_INTERNAL_URL או REDIS_URL מ-Redis addon. ברירת מחדל ל-localhost (מקומי בלי Docker).
