@@ -1,7 +1,7 @@
 # pyright: reportMissingImports=false
 """Database: schema, models, session. Use db.session for SQLAlchemy."""
 from db.models import Base, Player, Room, Task, TaskAnswer, TaskStatus, TaskType
-from db.session import SessionLocal, get_session, init_db
+from db.session import SessionLocal, get_session, init_db, wait_for_db
 
 __all__ = [
     "Base",
@@ -14,4 +14,5 @@ __all__ = [
     "SessionLocal",
     "get_session",
     "init_db",
+    "wait_for_db",
 ]
