@@ -30,6 +30,7 @@ services:
   - type: keyvalue
     name: escape-room-telegram-redis
     plan: free
+    ipAllowList: []  # Only internal (private network) connections; required by Render for keyvalue
 
 databases:
   - name: escape-room-telegram-postgres
