@@ -19,6 +19,9 @@ services:
       # WEBAPP_URL = frontend URL for /game redirect (https://escape-room-telegram.onrender.com)
       - key: WEBAPP_URL
         sync: false
+      # BACKEND_PUBLIC_URL = this service URL for Telegram webhook (https://escape-room-telegram-api.onrender.com)
+      - key: BACKEND_PUBLIC_URL
+        sync: false
       - fromGroup: escape-room-secrets
 
   # Frontend SPA (nginx) – main app URL; set VITE_API_URL to backend URL

@@ -59,7 +59,7 @@ docker compose up --build
    - **escape-room-telegram** – frontend (Docker: `frontend/Dockerfile`, nginx).
    - Postgres + Redis (keyvalue).
 4. ב-**Environment** של כל שירות:
-   - **Backend (escape-room-telegram-api):** `TELEGRAM_TOKEN`, `WEBAPP_URL` = כתובת הפרונט (`https://escape-room-telegram.onrender.com`), ושאר ה-secrets מ-`escape-room-secrets`.
+   - **Backend (escape-room-telegram-api):** `TELEGRAM_TOKEN`, `WEBAPP_URL` = כתובת הפרונט (`https://escape-room-telegram.onrender.com`), **`BACKEND_PUBLIC_URL`** = כתובת הבקאנד (`https://escape-room-telegram-api.onrender.com`) – ל-webhook של טלגרם, ושאר ה-secrets מ-`escape-room-secrets`.
    - **Frontend (escape-room-telegram):** `VITE_API_URL` = כתובת הבקאנד (`https://escape-room-telegram-api.onrender.com`), `VITE_BASE_PATH` = `/` (לבנייה ל-root).
 5. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL לכתובת **הפרונט** (`https://escape-room-telegram.onrender.com/game`).
 
