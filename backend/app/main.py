@@ -4,12 +4,10 @@ import logging
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
 from telegram import Update
 
 from config import config
 from db import init_db
-from paths import FRONTEND_DIST
 from app.api.games import router as games_router
 from app.api.ws_game import router as ws_game_router
 from app.routes.pages import router as pages_router
@@ -20,13 +18,6 @@ from app.bot.app import create_telegram_app, run_telegram
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telegram Bot - חדר בריחה")
-
-if FRONTEND_DIST.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIST)), name="static")
-else:
-    logger.warning(
-        "frontend/dist not found; run 'cd frontend && npm run build'. /static and /game will not serve frontend."
-    )
 
 app.include_router(games_router, prefix="/api")
 app.include_router(ws_game_router, prefix="/ws")

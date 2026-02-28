@@ -3,7 +3,7 @@
  * Contract: matches backend app/api/games.py (prefix /api/games).
  */
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? '') + '/api/games'
+const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/games'
 
 function gameUrl(gameId: string): string {
   return API_BASE + '/' + encodeURIComponent(gameId)
@@ -163,7 +163,7 @@ export async function notifyDoorOpened(gameId: string): Promise<{ ok: boolean }>
 
 /** Base URL for API (no path). Used to derive WebSocket URL. */
 function apiBaseOrigin(): string {
-  const base = import.meta.env.VITE_API_URL ?? ''
+  const base = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
   if (base) {
     try {
       const u = new URL(base)

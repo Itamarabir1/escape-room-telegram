@@ -1,61 +1,60 @@
-# Escape Room Multiplayer – Backend + Redis + PostgreSQL (הכל על דוקר)
-# Usage: בנה פרונט: cd frontend && npm run build. אחר כך: docker compose up -d
+# Local development: backend, frontend (nginx), postgres, redis.
+# Run: docker compose up --build
+# Frontend: http://localhost:3000  (API via VITE_API_URL=http://localhost:8000)
+# Backend:  http://localhost:8000
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: escape_room_redis
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: escape_room_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-escape_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-escape_pass}
-      POSTGRES_DB: ${POSTGRES_DB:-escape_room}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-escape_user} -d ${POSTGRES_DB:-escape_room}"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: escape_room_backend
-    restart: unless-stopped
-    depends_on:
-      redis: { condition: service_healthy }
-      postgres: { condition: service_healthy }
+      dockerfile: backend/Dockerfile
     ports:
-      - "${PORT:-8000}:8000"
-  
-    env_file:
-      - .env
+      - "8000:8000"
     environment:
+      DATABASE_URL: postgresql://escape_user:escape_pass@postgres:5432/escape_room
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql://...
-      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
-      WEBAPP_URL: ${WEBAPP_URL:-http://localhost:8000}
       PORT: "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+        VITE_BASE_PATH: /
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: escape_user
+      POSTGRES_PASSWORD: escape_pass
+      POSTGRES_DB: escape_room
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escape_user -d escape_room"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/var/lib/redis/data
 
 volumes:
-  redis_data:
-  postgres_data:
-
+  postgres_data: {}
+  redis_data: {}

@@ -20,7 +20,7 @@ export default defineConfig({
       },
     },
   ],
-  base: '/static/',
+  base: (import.meta.env.VITE_BASE_PATH as string) || '/static/',
   server: {
     port: 5173,
     proxy: {

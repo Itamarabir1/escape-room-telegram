@@ -8,6 +8,5 @@ _REPO_ROOT = _BACKEND_DIR.parent
 IMAGES_DIR = _REPO_ROOT / "images"
 ROOM_ASSETS_DIR = _BACKEND_DIR / "room_assets"
 AUDIO_DIR = _BACKEND_DIR / "audio"
-FRONTEND_DIST = _REPO_ROOT / "frontend" / "dist"
 
 LORE_WAV_PATH = AUDIO_DIR / "lore.wav"

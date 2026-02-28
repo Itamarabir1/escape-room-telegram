@@ -1,22 +1,22 @@
 # pyright: reportMissingImports=false
-"""Serves the game Web App page (HTML). Health is in routes/health.py."""
-from pathlib import Path
+"""Redirects /game to the frontend (WEBAPP_URL). Health is in routes/health.py."""
 from fastapi import APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
+from fastapi import Request
 
-# Project layout: telegram-bot/{backend,frontend}; backend serves built frontend from frontend/dist
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-FRONTEND_DIST = _REPO_ROOT / "frontend" / "dist"
-INDEX_HTML = FRONTEND_DIST / "index.html"
+from config import config
 
 router = APIRouter(tags=["pages"])
 
-# מונע cache של דף המשחק – עדכון פרונט ייטען מיד
-GAME_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate"}
 
 @router.get("/game")
-async def get_game():
-    """Serves the game Web App (HTML) from frontend/dist. Build first: cd frontend && npm run build."""
-    if not INDEX_HTML.exists():
-        return {"detail": "קובץ המשחק לא נמצא. הרץ קודם: cd frontend && npm run build."}
-    return FileResponse(INDEX_HTML, headers=GAME_HEADERS)
+async def get_game(request: Request):
+    """Redirect to the frontend Web App URL (game is served by the frontend container)."""
+    if config.WEBAPP_URL:
+        path = request.url.path
+        query = request.url.query
+        url = f"{config.WEBAPP_URL.rstrip('/')}{path}"
+        if query:
+            url += f"?{query}"
+        return RedirectResponse(url=url, status_code=302)
+    return {"detail": "WEBAPP_URL not set. Configure the frontend URL."}

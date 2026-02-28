@@ -4,7 +4,21 @@
 
 מבנה הפרויקט (Backend + Frontend): **`backend/ARCHITECTURE.md`**. חוזה API: **`backend/docs/API_CONTRACT.md`**.
 
-## פיתוח מקומי
+## Docker (פיתוח מקומי – מומלץ)
+
+הפרויקט כולל `docker-compose.yml` עם backend, frontend (nginx), postgres ו-redis.
+
+```bash
+docker compose up --build
+```
+
+- **Frontend:** http://localhost:3000 (האפליקציה רצה על nginx)
+- **Backend API:** http://localhost:8000  
+הפרונט משתמש ב-`VITE_API_URL=http://localhost:8000` (מוגדר כ-build-arg ב-compose).
+
+להרצת רק הבקאנד + DB בלי Docker, ראה "פיתוח מקומי" למטה.
+
+## פיתוח מקומי (בלי Docker)
 
 כדי שהכל ירוץ אצלך בלי Render (טעינה מהירה, ללא המתנה ל-deploy):
 
@@ -14,12 +28,8 @@
    pip install -r requirements.txt
    ```
 
-2. **הגדרת סביבה** – העתק והגדר טוקן:
-   ```bash
-   cp backend/.env.example backend/.env
-   ```
-   ערוך `backend/.env`: הכנס `TELEGRAM_TOKEN` מ-@BotFather.  
-   **אל תגדיר** `WEBAPP_URL` (השאר ריק או ללא השורה) – אז הבוט ישתמש ב-polling והלינקים יופנו ל-`http://localhost:8000`.
+2. **הגדרת סביבה (בקאנד)** – העתק `backend/.env.example` ל-`backend/.env` והשלם ערכים (חובה: `TELEGRAM_TOKEN` מ-@BotFather).  
+   **אל תגדיר** `WEBAPP_URL` (השאר ריק) – אז הבוט ישתמש ב-polling והלינקים יופנו ל-`http://localhost:8000`.
 
 3. **בניית הפרונט** (פעם אחת או אחרי שינויים בפרונט):
    ```bash
@@ -27,7 +37,7 @@
    npm install
    npm run build
    ```
-   הבקאנד מגיש את הקבצים מ-`frontend/dist` ב-`/static` ו-`/game`.
+   אם אתה רץ **בלי Docker**, הרץ את הפרונט: `npm run dev` (פורט 5173). ב-dev נטען אוטומטית `frontend/.env.development` (ב-Git) עם `VITE_API_URL=http://localhost:8000`. ל-production/build העתק `frontend/.env.example` ל-`frontend/.env` או הגדר משתנים ב-build.
 
 4. **הרצת השרת** (תמיד מתוך `backend`):
    ```bash
@@ -36,35 +46,24 @@
    ```
    או: `uvicorn app.main:app --reload --port 8000`
 
-5. **בדיקה**: פתח את הבוט בקבוצה → `/start_game` → הירשם → "כולם פה, אפשר להתחיל!" → הבוט ישלח לינק. פתח את הלינק **בדפדפן במחשב** (`http://localhost:8000/game?game_id=...`) – הדף וה-API רצים מהמחשב שלך.
-
-   **פיתוח פרונט**: להריץ במקביל `cd frontend && npm run dev` — אז לגלוש ל-`http://localhost:5173/game?game_id=...` (Vite עם proxy ל-API).  
-   (מהטלפון הלינק localhost לא יעבוד – לבדוק מהמחשב או אחרי deploy ל-Render.)
+5. **בדיקה**: פתח את הבוט בקבוצה → `/start_game` → הירשם → "כולם פה, אפשר להתחיל!" → הבוט ישלח לינק. פתח את הלינק **בדפדפן במחשב** – אם רצת עם Docker השתמש ב-`http://localhost:3000/game?game_id=...`, אם עם uvicorn + פרונט dev השתמש ב-`http://localhost:5173/game?game_id=...` (Vite עם proxy ל-API).
 
 **סיכום מקומי:** רק `TELEGRAM_TOKEN` ב-`.env`, בלי `WEBAPP_URL`. אותו קוד – ב-Render תגדיר `WEBAPP_URL` ב-Dashboard.
 
 ## פריסה ל-Render
 
-1. **בנה את הפרונט והעלה ל-Git** (חובה – ב-Render אין Node, אז ה־dist חייב להיות ב-repo):
-   ```bash
-   cd frontend
-   npm run build
-   cd ..
-   git add frontend/dist
-   git commit -m "build: frontend for Render"
-   git push
-   ```
-2. העלה את הפרויקט ל-GitHub (אם עדיין לא).
-3. ב-[Render](https://render.com): **New → Blueprint**.
-4. חבר את ה-repository (או בחר "From existing render.yaml" אם יש כבר `render.yaml`).
-5. Render יקרא את `render.yaml` שבשורש הפרויקט. אשר את השירות ולחץ **Deploy Blueprint**.
-6. ב-**Environment** של השירות הוסף:
-   - `TELEGRAM_TOKEN` – הטוקן מ-@BotFather.
-   - `WEBAPP_URL` – כתובת השירות ב-Render (למשל `https://telegram-bot-xxxx.onrender.com`), **בלי** סלאש בסוף.
-   - `REDIS_URL` – (אם יש Redis ב-Render: הוסף Redis addon והעתק את ה-URL; אחרת השאר ריק – אז משתמשים ב-in-memory).
-7. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL ל־`https://<שירות-שלך>.onrender.com/game` אם נדרש.
+1. העלה את הפרויקט ל-GitHub (אם עדיין לא).
+2. ב-[Render](https://render.com): **New → Blueprint** וחבר את ה-repository.
+3. `render.yaml` מגדיר:
+   - **escape-room-telegram** – backend (Docker: `backend/Dockerfile`). לא מגיש יותר קבצי פרונט.
+   - **escape-room-telegram-web** – frontend (Docker: `frontend/Dockerfile`, nginx).
+   - Postgres + Redis (keyvalue).
+4. ב-**Environment** של כל שירות:
+   - **Backend (escape-room-telegram):** `TELEGRAM_TOKEN`, `WEBAPP_URL` = כתובת הפרונט (למשל `https://escape-room-telegram-web.onrender.com`), ושאר ה-secrets מ-`escape-room-secrets`.
+   - **Frontend (escape-room-telegram-web):** `VITE_API_URL` = כתובת הבקאנד (למשל `https://escape-room-telegram.onrender.com`), `VITE_BASE_PATH` = `/` (לבנייה ל-root).
+5. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL לכתובת **הפרונט** (למשל `https://escape-room-telegram-web.onrender.com/game`).
 
-**אחרי שינויי פרונט:** הרץ שוב `cd frontend && npm run build`, ואז `git add frontend/dist && git commit && git push` – כדי ש-Render יגיש גרסה מעודכנת.
+**אין צורך יותר** לבנות `frontend/dist` locally ולהעלות ל-Git – הפרונט נבנה על Render מתוך `frontend/Dockerfile`.
 
 ### בדיקת חיים
 
@@ -72,15 +71,22 @@
 
 ## מבנה הפרויקט (הפרדה backend / frontend)
 
-- **`backend/`** — קוד Python בלבד (FastAPI, API, בוט). בפרודקשן מגיש **רק** את תוצאת הבנייה מ-`frontend/dist` ב-`/static` ו-`/game` (ללא קבצי מקור פרונט).
-- **`frontend/`** — פרויקט Vite + React + TypeScript. מקור ב-`src/`; אחרי `npm run build` נוצר `dist/`. הפרונט מדבר עם הבקאנד רק דרך HTTP.
+- **`backend/`** — קוד Python (FastAPI, API, בוט). בפרודקשן **לא** מגיש קבצי פרונט; `/game` מפנה ל-`WEBAPP_URL`.
+- **`frontend/`** — Vite + React + TypeScript. נבנה ל-Docker (node build + nginx) או ל-`dist/` בפיתוח. משתמש ב-`VITE_API_URL` (ברירת מחדל בקוד: `http://localhost:8000`). תבנית: `frontend/.env.example`; פיתוח: `frontend/.env.development` (נטען ב-`npm run dev`).
+
+## ניקוי – קבצים שאפשר למחוק / להסיר מ-Git
+
+אחרי מעבר ל-Docker והגדרת Render עם שני שירותים:
+
+- **`frontend/dist/`** – אפשר למחוק מהדיסק ולהסיר מ-Git (`.gitignore` כבר יכול לכלול `frontend/dist`). הבנייה מתבצעת ב-Docker וב-Render.
+- **`Dockerfile`** בשורש הפרויקט – אפשר למחוק; הבנייה מתבצעת מ-`backend/Dockerfile` ו-`frontend/Dockerfile`.
 
 ראה **`frontend/README.md`** לסקריפטים והרצת פיתוח.
 
 ## Backend – Layered Architecture
 
 - **`backend/ARCHITECTURE.md`** — סכמה (Mermaid) והסבר על השכבות
-- **Presentation** (`app/`): `main.py` (חיבור בלבד), `api/`, `routes/` (כולל **`routes/health.py`** – health ייעודי), `bot/`. ה-Web App מגיש מתוך **`frontend/dist`** (תוצאת `npm run build`).
+- **Presentation** (`app/`): `main.py` (חיבור בלבד), `api/`, `routes/` (כולל **`routes/health.py`** – health ייעודי), `bot/`. ה-Web App **לא** מוגש מהבקאנד – `/game` מפנה ל-`WEBAPP_URL`.
 - **Application** (`services/`): `game_session.py` — לוגיקת משחק
 - **Domain** (`domain/`): `game.py` — סכמה (`GameStateResponse`, `HealthResponse`)
 - **Infrastructure**: `config.py` (כולל `MODE`), `utils/urls.py`

@@ -10,15 +10,14 @@ wheels/
 venv
 .venv
 
-# Environment variables (secrets)
-.env
-*.env
-!.env.example
+# Environment – ignore all .env (secrets/config); allow only template files
+**/.env
+!**/.env.example
+!**/.env.sample
 
 # Generated room images (saved locally; remove this line to track them in Git)
 backend/room_images/
 
 # Frontend (Vite)
 frontend/node_modules/
-# dist/ למעלה מתעלם מכל dist – חריגה כדי ש-Render יגיש את הבנייה:
-!frontend/dist/
+# frontend/dist/ no longer committed; built in Docker / on Render (remove from Git: git rm -r --cached frontend/dist)
