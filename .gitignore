@@ -10,10 +10,11 @@ wheels/
 venv
 .venv
 
-# Environment – ignore all .env (secrets/config); allow only template files
+# Environment – ignore all .env (secrets); allow only templates and dev-only files
 **/.env
 !**/.env.example
 !**/.env.sample
+!**/.env.development
 
 # Generated room images (saved locally; remove this line to track them in Git)
 backend/room_images/
