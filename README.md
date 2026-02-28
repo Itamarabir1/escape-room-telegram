@@ -55,13 +55,13 @@ docker compose up --build
 1. העלה את הפרויקט ל-GitHub (אם עדיין לא).
 2. ב-[Render](https://render.com): **New → Blueprint** וחבר את ה-repository.
 3. `render.yaml` מגדיר:
-   - **escape-room-telegram** – backend (Docker: `backend/Dockerfile`). לא מגיש יותר קבצי פרונט.
-   - **escape-room-telegram-web** – frontend (Docker: `frontend/Dockerfile`, nginx).
+   - **escape-room-telegram-api** – backend (Docker: `backend/Dockerfile`). לא מגיש קבצי פרונט.
+   - **escape-room-telegram** – frontend (Docker: `frontend/Dockerfile`, nginx).
    - Postgres + Redis (keyvalue).
 4. ב-**Environment** של כל שירות:
-   - **Backend (escape-room-telegram):** `TELEGRAM_TOKEN`, `WEBAPP_URL` = כתובת הפרונט (למשל `https://escape-room-telegram-web.onrender.com`), ושאר ה-secrets מ-`escape-room-secrets`.
-   - **Frontend (escape-room-telegram-web):** `VITE_API_URL` = כתובת הבקאנד (למשל `https://escape-room-telegram.onrender.com`), `VITE_BASE_PATH` = `/` (לבנייה ל-root).
-5. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL לכתובת **הפרונט** (למשל `https://escape-room-telegram-web.onrender.com/game`).
+   - **Backend (escape-room-telegram-api):** `TELEGRAM_TOKEN`, `WEBAPP_URL` = כתובת הפרונט (`https://escape-room-telegram.onrender.com`), ושאר ה-secrets מ-`escape-room-secrets`.
+   - **Frontend (escape-room-telegram):** `VITE_API_URL` = כתובת הבקאנד (`https://escape-room-telegram-api.onrender.com`), `VITE_BASE_PATH` = `/` (לבנייה ל-root).
+5. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL לכתובת **הפרונט** (`https://escape-room-telegram.onrender.com/game`).
 
 **אין צורך יותר** לבנות `frontend/dist` locally ולהעלות ל-Git – הפרונט נבנה על Render מתוך `frontend/Dockerfile`.
 

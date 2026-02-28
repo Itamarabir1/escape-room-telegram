@@ -26,6 +26,12 @@ app.include_router(health_router)
 app.include_router(media_router)
 
 
+@app.get("/")
+async def root():
+    """Root path: API only; no redirect. Frontend (escape-room-telegram) serves the app."""
+    return {"service": "escape-room-telegram-api", "docs": "/docs"}
+
+
 @app.get("/.well-known/appspecific/com.chrome.devtools.json")
 async def chrome_devtools_well_known():
     """Chrome DevTools probes this; return empty so we don't log 404."""

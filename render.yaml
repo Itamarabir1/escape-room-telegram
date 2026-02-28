@@ -1,7 +1,7 @@
 services:
-  # Backend API + Telegram bot (no longer serves frontend static files)
+  # Backend API + Telegram bot (serves only API; frontend at escape-room-telegram)
   - type: web
-    name: escape-room-telegram
+    name: escape-room-telegram-api
     runtime: docker
     dockerfilePath: backend/Dockerfile
     repo: https://github.com/Itamarabir1/escape-room-telegram
@@ -16,19 +16,20 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
-      # WEBAPP_URL = frontend app URL (e.g. https://escape-room-telegram-web.onrender.com) for /game redirect
+      # WEBAPP_URL = frontend URL for /game redirect (https://escape-room-telegram.onrender.com)
       - key: WEBAPP_URL
         sync: false
       - fromGroup: escape-room-secrets
 
-  # Frontend SPA (nginx). Set VITE_API_URL to backend URL at build time (e.g. https://escape-room-telegram.onrender.com).
+  # Frontend SPA (nginx) – main app URL; set VITE_API_URL to backend URL
   - type: web
-    name: escape-room-telegram-web
+    name: escape-room-telegram
     runtime: docker
     dockerfilePath: frontend/Dockerfile
     repo: https://github.com/Itamarabir1/escape-room-telegram
     plan: free
     envVars:
+      # Backend URL for API and WebSocket (https://escape-room-telegram-api.onrender.com)
       - key: VITE_API_URL
         sync: false
       - key: VITE_BASE_PATH

@@ -10,8 +10,8 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
 
 COPY frontend/package.json frontend/package-lock.json* ./
-# Install all deps (including devDependencies) so tsc and vite build work
-RUN npm ci || npm install
+# Install all deps including devDependencies so tsc and vite build work
+RUN npm install --include=dev
 
 COPY frontend/ ./
 RUN npm run build
