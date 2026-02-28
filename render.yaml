@@ -11,7 +11,7 @@ services:
       - key: REDIS_URL
         fromService:
           name: escape-room-telegram-redis
-          type: redis
+          type: keyvalue
           property: connectionString
       - key: TELEGRAM_TOKEN
         sync: false
@@ -26,10 +26,11 @@ services:
       - key: BUCKET_NAME
         sync: false
 
+  - type: keyvalue
+    name: escape-room-telegram-redis
+    plan: free
+
 databases:
   - name: escape-room-telegram-postgres
     plan: free
     databaseName: escape_room_db
-
-  - name: escape-room-telegram-redis
-    plan: free
