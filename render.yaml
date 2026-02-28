@@ -1,9 +1,11 @@
-# Render Blueprint – Redis as keyvalue service (not under databases)
 services:
   - type: web
     name: escape-room-telegram
     runtime: docker
     repo: https://github.com/Itamarabir1/escape-room-telegram
+    # קישור לקבוצת המשתנים שיצרת בממשק של Render
+    envVarGroups:
+      - name: escape-room-secrets
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -14,6 +16,7 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
+      # המשתנים הבאים יילקחו מה-Environment Group או יוזנו ידנית ב-Render
       - key: TELEGRAM_TOKEN
         sync: false
       - key: WEBAPP_URL
@@ -30,7 +33,6 @@ services:
   - type: keyvalue
     name: escape-room-telegram-redis
     plan: free
-    ipAllowList: []  # Only internal (private network) connections; required by Render for keyvalue
 
 databases:
   - name: escape-room-telegram-postgres
