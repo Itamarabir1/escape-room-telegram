@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from telegram import Update
 
 from config import config
-from db import init_db, wait_for_db
+from db import init_db
 from paths import FRONTEND_DIST
 from app.api.games import router as games_router
 from app.api.ws_game import router as ws_game_router
@@ -55,7 +55,6 @@ async def telegram_webhook(request: Request):
 
 @app.on_event("startup")
 async def startup_event():
-    wait_for_db()  # Wait for Postgres to be ready (e.g. on Render)
     init_db()
     tg_app = create_telegram_app()
     app.state.tg_app = tg_app
