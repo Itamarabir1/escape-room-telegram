@@ -4,9 +4,6 @@ services:
     runtime: docker
     repo: https://github.com/Itamarabir1/escape-room-telegram
     plan: free
-    # מחבר את כל המשתנים שהגדרת בקבוצה ב-Render (כולל ה-Token)
-    envVarGroups:
-      - name: escape-room-secrets
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -17,6 +14,9 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
+      # כאן התיקון: משיכת ה-Token מתוך הקבוצה שיצרת
+      - key: TELEGRAM_TOKEN
+        fromGroup: escape-room-secrets
 
   - type: keyvalue
     name: escape-room-telegram-redis
