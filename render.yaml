@@ -14,13 +14,16 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
-      # כאן התיקון: משיכת ה-Token מתוך הקבוצה שיצרת
-      - key: TELEGRAM_TOKEN
-        fromGroup: escape-room-secrets
+      # כאן התיקון למשתנה מהקבוצה - בלי המילה key
+      - fromGroup: escape-room-secrets
 
   - type: keyvalue
     name: escape-room-telegram-redis
     plan: free
+    # כאן התיקון ל-Redis - מאפשר גישה לשירותים שלך
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
 
 databases:
   - name: escape-room-telegram-postgres
