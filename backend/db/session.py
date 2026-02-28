@@ -11,10 +11,12 @@ from db.models import Base
 
 DATABASE_URL = config.DATABASE_URL
 
+# Render Postgres (and many managed DBs) close idle connections; recycle before that to avoid
+# "SSL error: unexpected eof" / "Connection reset by peer" when reusing a dead connection.
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    pool_recycle=300,
+    pool_recycle=60,  # refresh connections every 60s so they don't get killed by server
     echo=False,  # set True for SQL logging
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
