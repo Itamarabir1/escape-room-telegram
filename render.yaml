@@ -1,3 +1,4 @@
+# Render Blueprint – Redis as keyvalue service (not under databases)
 services:
   - type: web
     name: escape-room-telegram
