@@ -504,7 +504,10 @@ export default function GamePage() {
   }, [])
 
   const closeModalState = useCallback(() => {
-    window.speechSynthesis.cancel()
+    const synth = window.speechSynthesis
+    if (synth && document.hasFocus?.() && (synth.speaking || synth.pending)) {
+      synth.cancel()
+    }
     modalTTSRef.current = null
     setTaskModalOpen(false)
     setSelectedItem(null)
