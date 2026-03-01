@@ -21,6 +21,7 @@ def get_init_data_from_scope(scope: dict) -> str:
 
 async def ws_games_handler(websocket: WebSocket, game_id: str) -> None:
     init_data = get_init_data_from_scope(websocket.scope)
+    logger.info("WS init_data present=%s game_id=%s", bool(init_data), game_id)
     try:
         game, user_id = get_game_and_user_for_ws(game_id, init_data)
         logger.debug("WebSocket auth ok for game_id=%s user_id=%s", game_id, user_id)
