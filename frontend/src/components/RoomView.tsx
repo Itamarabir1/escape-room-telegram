@@ -39,17 +39,27 @@ export function RoomView({
   solvedItemIds,
   allPuzzlesSolved,
 }: RoomViewProps) {
+  const roomImageSrc = (() => {
+    const url = room.room_image_url
+    const apiUrl = getRoomMediaUrl('escape_room.png')
+    if (!url) return apiUrl
+    if (url.startsWith('/')) return apiUrl
+    try {
+      if (typeof window !== 'undefined' && new URL(url).origin === window.location.origin)
+        return apiUrl
+    } catch {
+      return apiUrl
+    }
+    return url
+  })()
+
   return (
     <div className={`room-section ${roomReady ? 'room-section--ready' : ''}`}>
       {hasImage ? (
         <div className="room-wrapper" ref={panoramaRef}>
           <div className="room-container">
             <img
-              src={
-                room.room_image_url?.startsWith('/')
-                  ? getRoomMediaUrl('escape_room.png')
-                  : (room.room_image_url ?? getRoomMediaUrl('escape_room.png'))
-              }
+              src={roomImageSrc}
               className="room-image"
               alt="חדר בריחה"
               onLoad={onRoomImageLoad}
