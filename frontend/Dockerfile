@@ -1,4 +1,5 @@
 # Stage 1: Build React app
+# Build context must be repo root (e.g. render.yaml: dockerContext: .) so COPY frontend/... paths resolve.
 FROM node:20-alpine AS builder
 
 WORKDIR /app

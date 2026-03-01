@@ -1,0 +1,6 @@
+# Exclude frontend .env files so Docker ARG/ENV VITE_API_URL are not overwritten by Vite loadEnv at build time
+frontend/.env
+frontend/.env.development
+frontend/.env.production
+# Avoid copying local node_modules; npm install runs in the image
+frontend/node_modules

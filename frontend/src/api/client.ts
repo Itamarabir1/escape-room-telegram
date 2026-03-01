@@ -3,9 +3,20 @@
  * Contract: matches backend app/api/games.py (prefix /api/games).
  */
 
+/** Default API base when VITE_API_URL is missing or empty. Use production URL when app is served from production frontend. */
+function getDefaultApiBase(): string {
+  if (typeof window !== 'undefined' && window.location.origin === 'https://escape-room-telegram.onrender.com') {
+    return 'https://escape-room-telegram-api.onrender.com'
+  }
+  return 'http://localhost:8000'
+}
+
 function apiBaseUrl(): string {
-  const raw = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-  const base = typeof raw === 'string' ? raw.replace(/\/+$/, '') : 'http://localhost:8000'
+  const raw = import.meta.env.VITE_API_URL
+  const base =
+    typeof raw === 'string' && raw.trim()
+      ? raw.trim().replace(/\/+$/, '')
+      : getDefaultApiBase()
   return base + '/api/games'
 }
 
@@ -169,8 +180,11 @@ export async function notifyDoorOpened(gameId: string): Promise<{ ok: boolean }>
 
 /** Base URL for API (no path). Used to derive WebSocket URL. */
 function apiBaseOrigin(): string {
-  const raw = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-  const base = typeof raw === 'string' ? raw.replace(/\/+$/, '') : 'http://localhost:8000'
+  const raw = import.meta.env.VITE_API_URL
+  const base =
+    typeof raw === 'string' && raw.trim()
+      ? raw.trim().replace(/\/+$/, '')
+      : getDefaultApiBase()
   if (base) {
     try {
       const u = new URL(base)
