@@ -405,8 +405,13 @@ export default function GamePage() {
   useEffect(() => {
     if (!gameId || !room) return
     const url = getGameWebSocketUrl(gameId)
+    console.log('[WS] connecting gameId=', gameId, 'url=', url)
     const ws = new WebSocket(url)
+    ws.onopen = () => {
+      console.log('[WS] open gameId=', gameId)
+    }
     ws.onmessage = (ev) => {
+      console.log('[WS] message gameId=', gameId, 'data=', ev.data)
       try {
         const data = JSON.parse(ev.data) as {
           event?: string
@@ -454,6 +459,12 @@ export default function GamePage() {
       } catch {
         // ignore non-JSON or unknown shape
       }
+    }
+    ws.onerror = (ev) => {
+      console.log('[WS] error gameId=', gameId, ev)
+    }
+    ws.onclose = (ev) => {
+      console.log('[WS] close gameId=', gameId, 'code=', ev.code, 'reason=', ev.reason)
     }
     return () => {
       ws.close()

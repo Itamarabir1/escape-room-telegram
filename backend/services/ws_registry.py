@@ -17,7 +17,9 @@ def register(game_id: str, ws: WebSocket) -> None:
     if game_id not in _connections:
         _connections[game_id] = set()
     _connections[game_id].add(ws)
-    logger.debug("WS registered game_id=%s total=%s", game_id, len(_connections[game_id]))
+    n = len(_connections[game_id])
+    logger.debug("WS registered game_id=%s total=%s", game_id, n)
+    logger.info("WS register game_id=%s connections_count=%s", game_id, n)
 
 
 def unregister(game_id: str, ws: WebSocket) -> None:
@@ -27,12 +29,16 @@ def unregister(game_id: str, ws: WebSocket) -> None:
         if not _connections[game_id]:
             del _connections[game_id]
     logger.debug("WS unregistered game_id=%s", game_id)
+    logger.info("WS unregister game_id=%s", game_id)
 
 
 async def _broadcast(game_id: str, payload: dict[str, Any]) -> None:
     """Send JSON payload to all connections for this game_id. Unregisters connections that fail to send."""
     if game_id not in _connections:
+        logger.info("WS broadcast game_id=%s skipped no_connections", game_id)
         return
+    conn_count = len(_connections[game_id])
+    logger.info("WS broadcast game_id=%s connections=%s payload_type=%s", game_id, conn_count, payload.get("type") or payload.get("event"))
     text = json.dumps(payload, ensure_ascii=False)
     dead: set[WebSocket] = set()
     for ws in _connections[game_id]:

@@ -1,5 +1,6 @@
 # pyright: reportMissingImports=false
 """Submit puzzle answer: validate, compare, update state, broadcast. Returns result dict; raises HTTPException on bad request."""
+import logging
 from typing import Any
 
 from fastapi import HTTPException
@@ -14,6 +15,8 @@ from utils.puzzle import (
     WRONG_MESSAGE,
     normalize_answer,
 )
+
+logger = logging.getLogger(__name__)
 
 ITEM_NOT_FOUND_DETAIL = "פריט או חידה לא נמצאו."
 NO_ANSWER_REQUIRED_DETAIL = "משימה זו אינה דורשת שליחת תשובה."
@@ -53,6 +56,7 @@ async def submit_puzzle_action(
         game["room_solved"] = room_solved
         save_game(game_id, game)
         label = item_label(game, item_id)
+        logger.info("WS broadcasting puzzle_solved game_id=%s item_id=%s", game_id, item_id)
         await broadcast_puzzle_solved(
             game_id,
             item_id=item_id,
