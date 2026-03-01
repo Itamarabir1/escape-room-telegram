@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
-from config import config
+from config.config import config
 from services.game_session import get_game_by_id, save_game
 from utils.telegram_webapp import (
     get_user_first_name_from_validated,

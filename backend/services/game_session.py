@@ -5,7 +5,7 @@ import logging
 import uuid
 from typing import Any
 
-from services.redis_store import (
+from infrastructure.redis.redis_client import (
     redis_delete_game,
     redis_get_game,
     redis_set_game,

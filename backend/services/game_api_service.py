@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from config import config
+from config.config import config
 from data.demo_room import (
     DEMO_ROOM_HEIGHT,
     DEMO_ROOM_ITEMS,

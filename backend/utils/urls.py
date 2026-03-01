@@ -1,6 +1,6 @@
 # pyright: reportMissingImports=false
 """Single place for app URLs. Uses config for base."""
-from config import config
+from config.config import config
 
 
 def game_app_url() -> str:
