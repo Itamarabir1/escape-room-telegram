@@ -51,10 +51,21 @@ class Config:
     )
 
     # --- Database ---
-    DATABASE_URL: str = os.getenv(
+    @classmethod
+    def _ensure_db_ssl(cls, url: str) -> str:
+        """On Render/production, ensure Postgres has sslmode to avoid 'SSL error: unexpected eof' / Connection reset."""
+        if not url or "sslmode=" in url or "ssl=" in url.lower():
+            return url
+        if os.getenv("RENDER") or cls.MODE == "production":
+            sep = "&" if "?" in url else "?"
+            return url + sep + "sslmode=require"
+        return url
+
+    _raw_db_url: str = os.getenv(
         "DATABASE_URL",
-        os.getenv("POSTGRES_URL", "postgresql://escape_user:escape_pass@postgres:5432/escape_room")
+        os.getenv("POSTGRES_URL", "postgresql://escape_user:escape_pass@postgres:5432/escape_room"),
     )
+    DATABASE_URL: str = ""  # assigned after class definition
 
     GAME_SESSION_TTL: int = int(os.getenv("GAME_SESSION_TTL", "86400"))
 
@@ -63,6 +74,7 @@ class Config:
         return Config.WEBAPP_URL or "http://localhost:8000"
 
 # בדיקת תקינות מינימלית
+Config.DATABASE_URL = Config._ensure_db_ssl(Config._raw_db_url)
 if not Config.TELEGRAM_TOKEN:
     print("❌ WARNING: TELEGRAM_TOKEN is missing!")
 

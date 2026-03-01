@@ -1,5 +1,5 @@
 # Stage 1: Build React app
-# Build context must be repo root (e.g. render.yaml: dockerContext: .) so COPY frontend/... paths resolve.
+# Build context MUST be repo root (render.yaml: dockerContext: .). If you see "package.json not found", set dockerContext to . in Render.
 FROM node:20-alpine AS builder
 
 WORKDIR /app
