@@ -31,7 +31,12 @@ async def ws_games_handler(websocket: WebSocket, game_id: str) -> None:
             await websocket.close(code=4404)
         else:
             await websocket.close(code=4403)
-        logger.info("WS auth rejected game_id=%s status=%s", game_id, exc.status_code)
+        logger.info(
+            "WS auth rejected game_id=%s status=%s init_data_present=%s",
+            game_id,
+            exc.status_code,
+            bool(init_data),
+        )
         return
 
     await websocket.accept()
@@ -43,5 +48,5 @@ async def ws_games_handler(websocket: WebSocket, game_id: str) -> None:
     except WebSocketDisconnect:
         pass
     finally:
-        logger.info("WS disconnect game_id=%s", game_id)
+        logger.info("WS disconnect game_id=%s user_id=%s", game_id, user_id)
         unregister(game_id, websocket)

@@ -107,6 +107,9 @@ export default function GamePage() {
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
   const doorVideoRef = useRef<HTMLVideoElement | null>(null)
   const closeModalRef = useRef<() => void>(() => {})
+  const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wsReconnectAttemptsRef = useRef(0)
+  const wsManualCloseRef = useRef(false)
 
   const tg = getTelegramWebApp()
   if (tg.expand) tg.expand()
@@ -404,71 +407,93 @@ export default function GamePage() {
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (!gameId || !room) return
-    const url = getGameWebSocketUrl(gameId)
-    console.log('[WS] connecting gameId=', gameId, 'url=', url)
-    const ws = new WebSocket(url)
-    ws.onopen = () => {
-      console.log('[WS] open gameId=', gameId)
-    }
-    ws.onmessage = (ev) => {
-      console.log('[WS] message gameId=', gameId, 'data=', ev.data)
-      try {
-        const data = JSON.parse(ev.data) as {
-          event?: string
-          type?: string
-          started_at?: string
-          reason?: string
-          item_id?: string
-          item_label?: string
-          answer?: string
-          solver_name?: string
-        }
-        if (data.type === 'game_started' && data.started_at) {
-          startTimerFromServerTime(data.started_at)
-          setGameStarted(true)
-          setLoreNarrationActive(true)
-          setShowNarrationButton(true)
-          return
-        }
-        if (data.type === 'game_over' || data.event === 'game_over') {
-          if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current)
-            timerIntervalRef.current = null
+    let ws: WebSocket | null = null
+    let stopped = false
+
+    const connect = () => {
+      if (stopped) return
+      const url = getGameWebSocketUrl(gameId)
+      console.log('[WS] connecting gameId=', gameId, 'attempt=', wsReconnectAttemptsRef.current + 1, 'url=', url)
+      ws = new WebSocket(url)
+      ws.onopen = () => {
+        wsReconnectAttemptsRef.current = 0
+        console.log('[WS] open gameId=', gameId)
+      }
+      ws.onmessage = (ev) => {
+        console.log('[WS] message gameId=', gameId, 'data=', ev.data)
+        try {
+          const data = JSON.parse(ev.data) as {
+            event?: string
+            type?: string
+            started_at?: string
+            reason?: string
+            item_id?: string
+            item_label?: string
+            answer?: string
+            solver_name?: string
           }
-          setGameOver(true)
-          return
+          if (data.type === 'game_started' && data.started_at) {
+            startTimerFromServerTime(data.started_at)
+            setGameStarted(true)
+            setLoreNarrationActive(true)
+            setShowNarrationButton(true)
+            return
+          }
+          if (data.type === 'game_over' || data.event === 'game_over') {
+            if (timerIntervalRef.current) {
+              clearInterval(timerIntervalRef.current)
+              timerIntervalRef.current = null
+            }
+            setGameOver(true)
+            return
+          }
+          if (data.event === 'door_opened') {
+            setDoorVideoPlaying(true)
+            return
+          }
+          if (data.event !== 'puzzle_solved') return
+          const payload = data as PuzzleSolvedEvent
+          setSolvedItemIds((prev) => (prev.includes(payload.item_id) ? prev : [...prev, payload.item_id]))
+          const text =
+            payload.item_id === 'clock_1'
+              ? 'השעון כוון בהצלחה'
+              : payload.item_id === 'board_servers'
+                ? 'לוח הבקרה נפתח בהצלחה'
+                : payload.item_id === 'safe_1'
+                  ? 'הכספת נפתחה בהצלחה בתוכה יש מפתח'
+                  : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
+          console.log('[WS] חידה נפתרה – מציג באנר לכל הקבוצה:', text, 'solver=', payload.solver_name)
+          if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
+          setPuzzleSolvedNotification(text)
+          puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
+        } catch {
+          // ignore non-JSON or unknown shape
         }
-        if (data.event === 'door_opened') {
-          setDoorVideoPlaying(true)
-          return
-        }
-        if (data.event !== 'puzzle_solved') return
-        const payload = data as PuzzleSolvedEvent
-        setSolvedItemIds((prev) => (prev.includes(payload.item_id) ? prev : [...prev, payload.item_id]))
-        const text =
-          payload.item_id === 'clock_1'
-            ? 'השעון כוון בהצלחה'
-            : payload.item_id === 'board_servers'
-              ? 'לוח הבקרה נפתח בהצלחה'
-              : payload.item_id === 'safe_1'
-                ? 'הכספת נפתחה בהצלחה בתוכה יש מפתח'
-                : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
-        console.log('[WS] חידה נפתרה – מציג באנר לכל הקבוצה:', text, 'solver=', payload.solver_name)
-        if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
-        setPuzzleSolvedNotification(text)
-        puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
-      } catch {
-        // ignore non-JSON or unknown shape
+      }
+      ws.onerror = (ev) => {
+        console.log('[WS] error gameId=', gameId, ev)
+      }
+      ws.onclose = (ev) => {
+        console.log('[WS] close gameId=', gameId, 'code=', ev.code, 'reason=', ev.reason)
+        if (stopped || wsManualCloseRef.current) return
+        wsReconnectAttemptsRef.current += 1
+        const delayMs = Math.min(1000 * 2 ** (wsReconnectAttemptsRef.current - 1), 10000)
+        console.log('[WS] reconnect scheduled gameId=', gameId, 'attempt=', wsReconnectAttemptsRef.current, 'inMs=', delayMs)
+        if (wsReconnectTimerRef.current) clearTimeout(wsReconnectTimerRef.current)
+        wsReconnectTimerRef.current = setTimeout(() => connect(), delayMs)
       }
     }
-    ws.onerror = (ev) => {
-      console.log('[WS] error gameId=', gameId, ev)
-    }
-    ws.onclose = (ev) => {
-      console.log('[WS] close gameId=', gameId, 'code=', ev.code, 'reason=', ev.reason)
-    }
+
+    wsManualCloseRef.current = false
+    connect()
     return () => {
-      ws.close()
+      stopped = true
+      wsManualCloseRef.current = true
+      if (wsReconnectTimerRef.current) {
+        clearTimeout(wsReconnectTimerRef.current)
+        wsReconnectTimerRef.current = null
+      }
+      ws?.close()
       if (puzzleSolvedTimeoutRef.current) {
         clearTimeout(puzzleSolvedTimeoutRef.current)
         puzzleSolvedTimeoutRef.current = null

@@ -69,7 +69,7 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
         added = add_player(chat_data, user.id, user.first_name or "שחקן")
         if not added:
-            await query.answer("כבר נרשמת 😄", show_alert=False)
+            await query.answer("אתה כבר רשום למשחק 😄", show_alert=True)
             return
         await query.answer("נוספת למשחק! ✅", show_alert=False)
         if "lobby_msg_id" not in chat_data:

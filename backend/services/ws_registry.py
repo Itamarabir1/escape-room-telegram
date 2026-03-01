@@ -24,12 +24,16 @@ def register(game_id: str, ws: WebSocket) -> None:
 
 def unregister(game_id: str, ws: WebSocket) -> None:
     """Remove a WebSocket from the set for this game_id."""
+    n = 0
     if game_id in _connections:
         _connections[game_id].discard(ws)
         if not _connections[game_id]:
             del _connections[game_id]
+            n = 0
+        else:
+            n = len(_connections[game_id])
     logger.debug("WS unregistered game_id=%s", game_id)
-    logger.info("WS unregister game_id=%s", game_id)
+    logger.info("WS unregister game_id=%s connections_count=%s", game_id, n)
 
 
 async def _broadcast(game_id: str, payload: dict[str, Any]) -> None:
@@ -45,8 +49,10 @@ async def _broadcast(game_id: str, payload: dict[str, Any]) -> None:
         try:
             await ws.send_text(text)
         except Exception as e:
-            logger.debug("WS send failed game_id=%s: %s", game_id, e)
+            logger.info("WS send failed game_id=%s err=%s", game_id, e)
             dead.add(ws)
+    if dead:
+        logger.info("WS broadcast pruning_dead game_id=%s dead_count=%s", game_id, len(dead))
     for ws in dead:
         unregister(game_id, ws)
 

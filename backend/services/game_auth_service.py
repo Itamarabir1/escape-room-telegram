@@ -24,6 +24,11 @@ INIT_DATA_REQUIRED_DETAIL = "פתחו את המשחק בלחיצה על הכפת
 WS_PLAYERS_ONLY_DETAIL = "רק שחקנים רשומים יכולים לקבל עדכונים בזמן אמת."
 
 
+def _is_player_registered(players: dict[Any, Any], user_id: int) -> bool:
+    """Support both int and str keys in players map."""
+    return user_id in players or str(user_id) in players
+
+
 def _validate_and_load_game(game_id: str, init_data: str) -> tuple[dict, int | None, Any]:
     """Load game; if init_data present, validate and return (game, user_id, validated). Otherwise (game, None, None). Raises HTTPException on 401/404."""
     game = get_game_by_id(game_id)
@@ -49,7 +54,7 @@ def get_game_for_request(game_id: str, request: Request) -> dict:
     if user_id is None:
         return game
     players = game.get("players") or {}
-    if str(user_id) not in players:
+    if not _is_player_registered(players, int(user_id)):
         name = get_user_first_name_from_validated(validated)
         players[str(user_id)] = name
         game["players"] = players
@@ -69,6 +74,12 @@ def get_game_and_user_for_ws(game_id: str, init_data: str) -> tuple[dict, int]:
     game, user_id, _ = _validate_and_load_game(game_id, init_data)
     assert user_id is not None  # _validate_and_load_game raises if init_data present and invalid
     players = game.get("players") or {}
-    if str(user_id) not in players:
+    if not _is_player_registered(players, int(user_id)):
+        logger.info(
+            "WS players-only reject game_id=%s user_id=%s players_count=%s",
+            game_id,
+            user_id,
+            len(players),
+        )
         raise HTTPException(status_code=403, detail=WS_PLAYERS_ONLY_DETAIL)
     return game, int(user_id)

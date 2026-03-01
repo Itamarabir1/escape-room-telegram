@@ -54,7 +54,7 @@ def redis_get_game(game_id: str) -> dict[str, Any] | None:
             return None
         data = json.loads(raw)
         if "players" in data and isinstance(data["players"], dict):
-            data["players"] = {int(k): v for k, v in data["players"].items() if str(k).isdigit()}
+            data["players"] = {str(k): v for k, v in data["players"].items()}
         return data
     except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as e:
         logger.warning("Redis connection lost (get_game): %s", e)
