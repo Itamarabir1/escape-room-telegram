@@ -633,14 +633,20 @@ export default function GamePage() {
         if (gameId) notifyDoorOpened(gameId).catch(() => {})
         return
       }
-      if (shapeItemId === 'board_servers' && !solved.includes('clock_1')) {
-        setBlockedItemMessage('כוונו את השעון כדי לפתוח את לוח הבקרה.')
+      const deps = room?.puzzle_dependencies?.[shapeItemId]
+      const depsNotMet = deps?.length
+        ? !deps.every((id) => solved.includes(id))
+        : shapeItemId === 'board_servers' && !solved.includes('clock_1')
+      if (depsNotMet) {
+        setBlockedItemMessage(
+          shapeItemId === 'board_servers' ? 'כוונו את השעון כדי לפתוח את לוח הבקרה.' : 'יש לפתור קודם חידות אחרות בחדר.'
+        )
         setTimeout(() => setBlockedItemMessage(null), 4000)
         return
       }
       openTask(item)
     },
-    [gameStarted, loreNarrationActive, gameId, openTask]
+    [gameStarted, loreNarrationActive, gameId, room?.puzzle_dependencies, openTask]
   )
 
   const handleDoorVideoEnded = useCallback(() => {

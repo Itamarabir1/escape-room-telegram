@@ -34,6 +34,7 @@ class GameStateResponse(TypedDict):
     puzzle: NotRequired[PuzzleResponse]
     puzzles: NotRequired[list[PuzzleResponse]]
     solved_item_ids: NotRequired[list[str]]
+    puzzle_dependencies: NotRequired[dict[str, list[str]]]
     door_opened: NotRequired[bool]
     started_at: NotRequired[str]
 

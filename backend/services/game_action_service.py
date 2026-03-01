@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from domain.puzzle_status import PuzzleStatus
+from data.puzzle_dependencies import get_dependencies_for_item, get_block_message
 from services.game_api_service import item_label
 from services.game_session import save_game
 from services.ws_registry import broadcast_puzzle_solved
@@ -51,7 +52,15 @@ async def submit_puzzle_action(
         ITEM_SUCCESS_MESSAGES.get(item_id) or SUCCESS_MESSAGE
     ) if is_correct else WRONG_MESSAGE
     if is_correct:
+        # Enforce puzzle order: e.g. board_servers only after clock_1
         room_solved = game.get("room_solved") or {}
+        required = get_dependencies_for_item(item_id)
+        for dep_id in required:
+            if room_solved.get(dep_id) != PuzzleStatus.SOLVED.value:
+                raise HTTPException(
+                    status_code=400,
+                    detail=get_block_message(item_id),
+                )
         room_solved[item_id] = PuzzleStatus.SOLVED.value
         game["room_solved"] = room_solved
         save_game(game_id, game)

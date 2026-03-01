@@ -91,6 +91,8 @@ export interface GameStateResponse {
   puzzles?: PuzzleResponse[]
   /** item_ids with solved status in DB (per group) */
   solved_item_ids?: string[]
+  /** item_id -> list of item_ids that must be solved first (server is source of truth for order) */
+  puzzle_dependencies?: Record<string, string[]>
   /** ISO timestamp when first user clicked "התחל"; used for timer and rejoin */
   started_at?: string
   /** True when door animation was already triggered; used to resume in second room. */

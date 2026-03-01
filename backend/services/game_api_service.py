@@ -11,6 +11,7 @@ from data.demo_room import (
     DEMO_ROOM_PUZZLES,
     DEMO_ROOM_WIDTH,
 )
+from data.puzzle_dependencies import get_puzzle_dependencies
 from domain.game import GameStateResponse, PuzzleResponse
 from domain.puzzle_status import PuzzleStatus
 from utils.puzzle import SAFE_BACKSTORY
@@ -100,6 +101,7 @@ def build_game_state_response(game_id: str, game: dict[str, Any]) -> GameStateRe
             iid for iid, status in room_solved.items()
             if status == PuzzleStatus.SOLVED.value
         ]
+        out["puzzle_dependencies"] = get_puzzle_dependencies()
     return out
 
 
