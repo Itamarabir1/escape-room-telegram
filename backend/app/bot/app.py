@@ -24,18 +24,17 @@ async def run_telegram(application) -> None:
     """Initialize, start, and set webhook (production) or polling (local)."""
     await application.initialize()
     await application.start()
-    # Webhook must point to THIS backend (BACKEND_PUBLIC_URL), not the frontend (WEBAPP_URL)
-    webhook_base = config.BACKEND_PUBLIC_URL or config.WEBAPP_URL
-    if webhook_base:
-        webhook_url = f"{webhook_base}/webhook"
+    # Webhook must point ONLY to the backend API URL. Never use WEBAPP_URL (frontend) for the webhook.
+    if config.BACKEND_PUBLIC_URL:
+        webhook_url = f"{config.BACKEND_PUBLIC_URL.rstrip('/')}/webhook"
         await application.bot.set_webhook(url=webhook_url)
         logger.info("Webhook set: %s", webhook_url)
     else:
         try:
             await application.updater.start_polling()
-            logger.info("Polling started (no WEBAPP_URL)")
+            logger.info("Polling started (BACKEND_PUBLIC_URL not set)")
         except NetworkError as e:
             logger.warning(
-                "Polling failed (cannot reach Telegram): %s. Check internet/proxy. Web app and API still work.",
+                "Polling failed (cannot reach Telegram): %s. Set BACKEND_PUBLIC_URL in production to use webhook.",
                 e,
             )
