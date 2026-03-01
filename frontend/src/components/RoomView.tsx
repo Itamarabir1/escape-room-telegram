@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import type { GameStateResponse, RoomItemResponse } from '../api/client'
-import { DEMO_ROOM_WIDTH, DEMO_ROOM_HEIGHT, getRoomMediaUrl } from '../api/client'
+import { DEMO_ROOM_WIDTH, DEMO_ROOM_HEIGHT, getEffectiveRoomImageUrl } from '../api/client'
 import { ROOM_HOTSPOT_SHAPES } from '../constants/roomHotspots'
 
 type RoomViewProps = {
@@ -39,19 +39,7 @@ export function RoomView({
   solvedItemIds,
   allPuzzlesSolved,
 }: RoomViewProps) {
-  const roomImageSrc = (() => {
-    const url = room.room_image_url
-    const apiUrl = getRoomMediaUrl('escape_room.png')
-    if (!url) return apiUrl
-    if (url.startsWith('/')) return apiUrl
-    try {
-      if (typeof window !== 'undefined' && new URL(url).origin === window.location.origin)
-        return apiUrl
-    } catch {
-      return apiUrl
-    }
-    return url
-  })()
+  const roomImageSrc = getEffectiveRoomImageUrl(room.room_image_url)
 
   return (
     <div className={`room-section ${roomReady ? 'room-section--ready' : ''}`}>

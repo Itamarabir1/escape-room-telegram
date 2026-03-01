@@ -21,4 +21,4 @@ backend/room_images/
 
 # Frontend (Vite)
 frontend/node_modules/
-# frontend/dist/ no longer committed; built in Docker / on Render (remove from Git: git rm -r --cached frontend/dist)
+frontend/dist/

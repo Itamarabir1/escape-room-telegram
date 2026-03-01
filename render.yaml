@@ -47,7 +47,7 @@ services:
       - source: 0.0.0.0/0
         description: everywhere
 
-# משאבי תשתית
+# Infrastructure
 databases:
   - name: escape-room-telegram-postgres
     plan: free

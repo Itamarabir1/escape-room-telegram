@@ -4,7 +4,7 @@
  * All requests use absolute API URL so the static server never intercepts them.
  */
 
-const API_BASE_URL_FALLBACK = 'https://escape-room-telegram-api.onrender.com'
+const API_BASE_URL_FALLBACK = 'https://escape-room-telegram-api.onrender.com' // Must match backend in production; override with VITE_API_URL.
 
 function getApiBase(): string {
   const raw = import.meta.env.VITE_API_URL || API_BASE_URL_FALLBACK
@@ -16,6 +16,23 @@ function getApiBase(): string {
 export function getRoomMediaUrl(path: string): string {
   const p = path.replace(/^\/+/, '')
   return getApiBase() + '/room/' + p
+}
+
+/**
+ * Resolve room image URL for display. If backend sent a frontend-relative URL or same-origin URL,
+ * use the API media URL instead so the image is always loaded from the API.
+ */
+export function getEffectiveRoomImageUrl(roomImageUrl: string | undefined): string {
+  const apiUrl = getRoomMediaUrl('escape_room.png')
+  if (!roomImageUrl) return apiUrl
+  if (roomImageUrl.startsWith('/')) return apiUrl
+  try {
+    if (typeof window !== 'undefined' && new URL(roomImageUrl).origin === window.location.origin)
+      return apiUrl
+  } catch {
+    return apiUrl
+  }
+  return roomImageUrl
 }
 
 function apiBaseUrl(): string {

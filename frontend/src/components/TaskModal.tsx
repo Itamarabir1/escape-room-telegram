@@ -1,5 +1,19 @@
 import type { PuzzleResponse, RoomItemResponse } from '../api/client'
 
+function ModalCloseButton({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      type="button"
+      className="modal-close-btn-wrapper"
+      aria-label="סגור"
+      onClick={onClose}
+      onTouchEnd={() => onClose()}
+    >
+      סגור
+    </button>
+  )
+}
+
 type TaskModalProps = {
   selectedItem: RoomItemResponse
   selectedPuzzle: PuzzleResponse
@@ -76,48 +90,18 @@ export function TaskModal({
               >
                 {actionSubmitting ? 'שולח…' : 'בדוק'}
               </button>
-              <button
-                type="button"
-                className="modal-close-btn-wrapper"
-                aria-label="סגור"
-                onClick={handleCloseModal}
-                onTouchEnd={() => {
-                  handleCloseModal()
-                }}
-              >
-                סגור
-              </button>
+              <ModalCloseButton onClose={handleCloseModal} />
             </div>
           </>
         )}
         {selectedPuzzle.type === 'examine' && (
           <div className="modal-actions">
-            <button
-              type="button"
-              className="modal-close-btn-wrapper"
-              aria-label="סגור"
-              onClick={handleCloseModal}
-              onTouchEnd={() => {
-                handleCloseModal()
-              }}
-            >
-              סגור
-            </button>
+            <ModalCloseButton onClose={handleCloseModal} />
           </div>
         )}
         {selectedPuzzle.type !== 'unlock' && selectedPuzzle.type !== 'examine' && (
           <div className="modal-actions">
-            <button
-              type="button"
-              className="modal-close-btn-wrapper"
-              aria-label="סגור"
-              onClick={handleCloseModal}
-              onTouchEnd={() => {
-                handleCloseModal()
-              }}
-            >
-              סגור
-            </button>
+            <ModalCloseButton onClose={handleCloseModal} />
           </div>
         )}
       </div>

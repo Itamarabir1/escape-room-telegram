@@ -20,11 +20,10 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telegram Bot - חדר בריחה")
 
-# CORS: allow frontend origin (fixes CORS / Access-Control-Allow-Origin). Use WEBAPP_URL if set, hardcode fallback.
-_FRONTEND_ORIGIN_FALLBACK = "https://escape-room-telegram.onrender.com"
+# CORS: allow frontend origin. Origins read from config only (no hardcoded production URL here).
 _origins = [
-    config.WEBAPP_URL or _FRONTEND_ORIGIN_FALLBACK,
-    _FRONTEND_ORIGIN_FALLBACK,
+    config.WEBAPP_URL or config.FRONTEND_ORIGIN_FALLBACK,
+    config.FRONTEND_ORIGIN_FALLBACK,
     "http://localhost:3000",
     "http://localhost:5173",
 ]

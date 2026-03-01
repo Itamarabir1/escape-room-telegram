@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { DependencyList, RefObject } from 'react'
 import {
   getGameState,
   getGameWebSocketUrl,
@@ -47,6 +48,30 @@ declare global {
 
 function getTelegramWebApp() {
   return window.Telegram?.WebApp ?? {}
+}
+
+function useCenterScrollOnLoad(
+  ref: RefObject<HTMLDivElement | null>,
+  active: boolean,
+  deps: DependencyList
+) {
+  useEffect(() => {
+    if (!active) return
+    const run = () => {
+      const el = ref.current
+      if (!el) return
+      const maxScroll = el.scrollWidth - el.clientWidth
+      el.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
+    }
+    run()
+    requestAnimationFrame(() => requestAnimationFrame(run))
+    const t1 = setTimeout(run, 100)
+    const t2 = setTimeout(run, 400)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [active, ref, ...deps])
 }
 
 export default function GamePage() {
@@ -253,11 +278,11 @@ export default function GamePage() {
       })
   }, [gameId, showStatus])
 
+  const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
   useEffect(() => {
-    const hasRoomImage = !roomLoading && (room?.room_items?.length ?? 0) > 0 && Boolean(room?.room_image_url)
-    if (hasRoomImage) document.body.classList.add('game-has-room')
+    if (!roomLoading && hasRoomImage) document.body.classList.add('game-has-room')
     return () => document.body.classList.remove('game-has-room')
-  }, [roomLoading, room?.room_items?.length, room?.room_image_url])
+  }, [roomLoading, hasRoomImage])
 
   const showTimer = (room?.room_items?.length ?? 0) > 0 && !roomLoading && gameStarted
   useEffect(() => {
@@ -381,46 +406,15 @@ export default function GamePage() {
     setRoomImageLoaded(true)
   }, [])
 
-  useEffect(() => {
-    const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
-    if (!hasRoomImage || !roomImageLoaded) return
-    const container = panoramaRef.current
-    if (!container) return
-    const centerScroll = () => {
-      const el = panoramaRef.current
-      if (!el) return
-      const maxScroll = el.scrollWidth - el.clientWidth
-      el.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
-    }
-    centerScroll()
-    requestAnimationFrame(() => requestAnimationFrame(centerScroll))
-    const t1 = setTimeout(centerScroll, 100)
-    const t2 = setTimeout(centerScroll, 400)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-    }
-  }, [room?.room_image_url, room?.room_items?.length, roomImageLoaded])
-
-  useEffect(() => {
-    if (!showScienceLabRoom || !scienceLabImageLoaded) return
-    const el = scienceLabPanoramaRef.current
-    if (!el) return
-    const centerScroll = () => {
-      const container = scienceLabPanoramaRef.current
-      if (!container) return
-      const maxScroll = container.scrollWidth - container.clientWidth
-      container.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
-    }
-    centerScroll()
-    requestAnimationFrame(() => requestAnimationFrame(centerScroll))
-    const t1 = setTimeout(centerScroll, 100)
-    const t2 = setTimeout(centerScroll, 400)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-    }
-  }, [showScienceLabRoom, scienceLabImageLoaded])
+  useCenterScrollOnLoad(panoramaRef, hasRoomImage && roomImageLoaded, [
+    room?.room_image_url,
+    room?.room_items?.length,
+    roomImageLoaded,
+  ])
+  useCenterScrollOnLoad(scienceLabPanoramaRef, showScienceLabRoom && scienceLabImageLoaded, [
+    showScienceLabRoom,
+    scienceLabImageLoaded,
+  ])
 
   const unlockItemIds = (room && getPuzzles(room).filter((p) => p.type === 'unlock').map((p) => p.item_id)) ?? []
   const allPuzzlesSolved = unlockItemIds.length > 0 && unlockItemIds.every((id) => solvedItemIds.includes(id))
@@ -432,9 +426,7 @@ export default function GamePage() {
     setActionMessage(null)
   }, [])
 
-  const closeTaskModal = useCallback((e?: React.MouseEvent | React.PointerEvent) => {
-    e?.preventDefault()
-    e?.stopPropagation()
+  const closeModalState = useCallback(() => {
     window.speechSynthesis.cancel()
     modalTTSRef.current = null
     setTaskModalOpen(false)
@@ -443,18 +435,19 @@ export default function GamePage() {
     setActionMessage(null)
   }, [])
 
-  /** Inline close handler so the button always works (e.g. in Telegram WebView where events can be unreliable). */
-  const handleCloseModal = () => {
+  const closeTaskModal = useCallback((e?: React.MouseEvent | React.PointerEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
+    closeModalState()
+  }, [closeModalState])
+
+  const handleCloseModal = useCallback(() => {
     const synth = window.speechSynthesis
     if (synth && document.hasFocus?.() && (synth.speaking || synth.pending)) {
       synth.cancel()
     }
-    modalTTSRef.current = null
-    setTaskModalOpen(false)
-    setSelectedItem(null)
-    setUnlockAnswer('')
-    setActionMessage(null)
-  }
+    closeModalState()
+  }, [closeModalState])
   closeModalRef.current = handleCloseModal
 
   /** Telegram BackButton: when modal is open, show header back button; on press, close modal.
