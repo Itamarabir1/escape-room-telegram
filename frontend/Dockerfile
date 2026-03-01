@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Build-time args (Vite bakes these into the bundle)
+# Build-time args – Render passes env vars as build args; must be declared here to be baked into static files
 ARG VITE_API_URL
 ARG VITE_BASE_PATH=/
 ENV VITE_API_URL=$VITE_API_URL
