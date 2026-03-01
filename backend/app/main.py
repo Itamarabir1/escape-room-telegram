@@ -4,6 +4,7 @@ import logging
 
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
 
 from config import config
@@ -18,6 +19,18 @@ from app.bot.app import create_telegram_app, run_telegram
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telegram Bot - חדר בריחה")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://escape-room-telegram.onrender.com",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(games_router, prefix="/api")
 app.include_router(ws_game_router, prefix="/ws")
