@@ -1,6 +1,7 @@
 # pyright: reportMissingImports=false
 """Lobby system: /start_game (group-only), lobby_join, lobby_leaderboard, lobby_start."""
 import logging
+from datetime import datetime, timezone
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.error import BadRequest
@@ -10,6 +11,8 @@ from services.game_session import (
     start_registration,
     add_player,
     finish_registration,
+    get_game_by_id,
+    save_game,
     is_game_active,
 )
 from utils.urls import game_page_url
@@ -112,6 +115,10 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         chat = update.effective_chat
         chat_id = chat.id if chat else 0
         game_id = finish_registration(chat_id, chat_data)
+        game = get_game_by_id(game_id)
+        if game:
+            game["started_at"] = datetime.now(timezone.utc).isoformat()
+            save_game(game_id, game)
         game_url = game_page_url(game_id)
         if "lobby_msg_id" not in chat_data:
             await query.answer()
