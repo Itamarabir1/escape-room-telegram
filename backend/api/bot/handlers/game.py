@@ -1,23 +1,13 @@
 # pyright: reportMissingImports=false
-"""Group game: /start_game, join, מתחילים, /end_game. Thin layer over game_session."""
+"""Group game: /end_game, welcome, top10. Lobby/start flow is in start_game.py."""
 import logging
-from datetime import datetime, timezone
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
-from services.game_session import (
-    start_registration,
-    add_player,
-    is_game_active,
-    get_players_list_text,
-    finish_registration,
-    end_game_chat,
-    get_game_by_id,
-)
-from repositories.player_repository import register_player as register_player_db
-from repositories.group_repository import upsert_group, get_top10_groups, set_finished_at
+from services.game_session import is_game_active, end_game_chat
+from repositories.group_repository import get_top10_groups, set_finished_at
 from utils.urls import game_page_url
 
 logger = logging.getLogger(__name__)
@@ -66,118 +56,12 @@ async def send_fallback_game_link(query, chat_data: dict) -> None:
     )
 
 
-async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_data = context.chat_data
-    starter_id = update.message.from_user.id if update.message and update.message.from_user else None
-    if starter_id is not None:
-        chat_data["started_by_user_id"] = starter_id
-    if is_game_active(chat_data):
-        game_id = chat_data.get("game_id")
-        if game_id and get_game_by_id(game_id) is None:
-            end_game_chat(chat_data)
-            if starter_id is not None:
-                chat_data["started_by_user_id"] = starter_id
-        else:
-            await update.message.reply_text("המשחק כבר התחיל! אי אפשר להירשם שוב כרגע. ✋")
-            return
-    start_registration(chat_data)
-    keyboard = [
-        [InlineKeyboardButton("אני רוצה לשחק! 🙋‍♂️", callback_data="join_game")],
-        [InlineKeyboardButton("🏆 עשרת הגדולים ביותר", callback_data="top10")],
-    ]
-    sent = await update.message.reply_text(
-        "🎮 **ההרפתקה מתחילה!**\n\nמי מצטרף אלינו היום? לחצו על הכפתור למטה כדי להירשם.",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-    chat_data["registration_msg_id"] = sent.message_id
-
-
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    user = query.from_user
     chat_data = context.chat_data
     logger.debug("callback data=%s chat_id=%s", query.data, update.effective_chat.id if update.effective_chat else None)
 
-    if query.data == "join_game":
-        if is_game_active(chat_data):
-            game_id = chat_data.get("game_id")
-            if game_id:
-                await query.answer()
-                await send_game_button_or_link(
-                    query.message, game_id,
-                    "ההרשמה נסגרה. לחץ על הכפתור למטה כדי להיכנס למשחק:",
-                )
-            else:
-                await query.answer(
-                    "מצטערים, ההרשמה נסגרה. חפש בקבוצה את ההודעה עם הכפתור 'שחק עכשיו'.",
-                    show_alert=True,
-                )
-            return
-        if not add_player(chat_data, user.id, user.first_name or "שחקן"):
-            await query.answer("אתה כבר רשום למשחק! 😉", show_alert=True)
-            return
-        chat_id = update.effective_chat.id if update.effective_chat else 0
-        if chat_id:
-            register_player_db(chat_id, user.id, user.first_name or "שחקן")
-        await query.answer()
-        players_list = get_players_list_text(chat_data)
-        keyboard = [
-            [InlineKeyboardButton("גם אני רוצה! 🙋‍♂️", callback_data="join_game")],
-            [InlineKeyboardButton("כולם פה, אפשר להתחיל! 🚀", callback_data="start_ai_story")],
-        ]
-        await query.edit_message_text(
-            f"🎮 **רשימת שחקנים מעודכנת:**\n{players_list}\n\n"
-            "מחכים שכולם יירשמו... כשתהיו מוכנים, לחצו על הכפתור למטה!",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-
-    elif query.data == "start_ai_story":
-        logger.debug("start_ai_story chat_id=%s game_active=%s", update.effective_chat.id if update.effective_chat else None, is_game_active(chat_data))
-        if is_game_active(chat_data):
-            game_id = chat_data.get("game_id")
-            if game_id:
-                await query.answer()
-                await send_game_button_or_link(
-                    query.message, game_id,
-                    "המשחק כבר התחיל. לחץ על הכפתור למטה כדי להיכנס:",
-                )
-            else:
-                await query.answer(
-                    "המשחק כבר התחיל. חפש בקבוצה את ההודעה עם הכפתור 'שחק עכשיו' ולחץ עליו.",
-                    show_alert=True,
-                )
-            return
-        chat = update.effective_chat
-        chat_id = chat.id if chat else 0
-        group_name = (chat.title or "קבוצה").strip() if chat else "קבוצה"
-        if not group_name:
-            group_name = "קבוצה"
-        now = datetime.now(timezone.utc)
-        upsert_group(chat_id, group_name=group_name[:100], started_at=now)
-        try:
-            game_id = finish_registration(chat_id, chat_data)
-            await query.answer()
-            safe_name = group_name.replace("*", "•").replace("_", "\\_")[:80]
-            await query.message.reply_text(
-                f"✅ **{safe_name}** – ההרשמה נסגרה!\n\nלחץ על הכפתור למטה כדי להיכנס למשחק.",
-                reply_markup=_game_keyboard(game_id),
-                parse_mode="Markdown",
-            )
-        except BadRequest as e:
-            err_msg = getattr(e, "message", None) or str(e)
-            if "button" in err_msg.lower():
-                game_id = chat_data.get("game_id", "")
-                await query.answer()
-                await query.message.reply_text(
-                    "✅ ההרשמה נסגרה! לחץ על הכפתור למטה כדי להיכנס למשחק:",
-                    reply_markup=_game_keyboard_url_fallback(game_id),
-                )
-            else:
-                await query.answer()
-                raise
-        return
-
-    elif query.data == "top10":
+    if query.data == "top10":
         top = get_top10_groups()
         if not top:
             await query.answer("עדיין אין תוצאות. היו הראשונים לסיים! 🏆", show_alert=True)
@@ -215,7 +99,7 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 return
         keyboard = [
             [
-                InlineKeyboardButton("כן ✅", callback_data="join_game"),
+                InlineKeyboardButton("כן ✅", callback_data="lobby_join"),
                 InlineKeyboardButton("לא ❌", callback_data="ignore_welcome"),
             ]
         ]
@@ -253,7 +137,6 @@ async def end_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 def register_game_handlers(application) -> None:
-    application.add_handler(CommandHandler("start_game", start_game))
     application.add_handler(CommandHandler("end_game", end_game))
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))

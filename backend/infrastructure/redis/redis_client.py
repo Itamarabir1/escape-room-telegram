@@ -103,3 +103,32 @@ def redis_delete_game(game_id: str) -> bool:
 
 def redis_available() -> bool:
     return _get_redis() is not None
+
+
+# Leaderboard: sorted set "leaderboard", score = seconds to complete (lower = better).
+# Writing to this key (e.g. on game end) can be added later.
+_LEADERBOARD_KEY = "leaderboard"
+
+
+def redis_get_leaderboard_top10() -> list[tuple[str, float]]:
+    """Return top 10 from Redis sorted set 'leaderboard' (ascending = best first). Returns [(member, score), ...] or []."""
+    r = _get_redis()
+    if not r:
+        return []
+    try:
+        raw = r.zrange(_LEADERBOARD_KEY, 0, 9, withscores=True)
+        if not raw:
+            return []
+        result: list[tuple[str, float]] = []
+        for item in raw:
+            member = item[0] if isinstance(item[0], str) else str(item[0])
+            score = float(item[1])
+            result.append((member, score))
+        return result
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as e:
+        logger.warning("Redis connection lost (get_leaderboard): %s", e)
+        _clear_redis_on_error()
+        return []
+    except (TypeError, ValueError) as e:
+        logger.warning("redis_get_leaderboard_top10 error: %s", e)
+        return []

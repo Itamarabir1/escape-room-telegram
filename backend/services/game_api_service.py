@@ -52,6 +52,8 @@ def build_game_state_response(game_id: str, game: dict[str, Any]) -> GameStateRe
         "players": players_str,
         "game_active": game.get("game_active", True),
     }
+    if game.get("started_at"):
+        out["started_at"] = game["started_at"]
     if game.get("door_opened"):
         out["door_opened"] = bool(game.get("door_opened"))
     if game.get("room_image_url") or game.get("room_items"):
@@ -98,8 +100,6 @@ def build_game_state_response(game_id: str, game: dict[str, Any]) -> GameStateRe
             iid for iid, status in room_solved.items()
             if status == PuzzleStatus.SOLVED.value
         ]
-        if game.get("started_at"):
-            out["started_at"] = game["started_at"]
     return out
 
 

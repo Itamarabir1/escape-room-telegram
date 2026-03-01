@@ -102,9 +102,8 @@ export default function GamePage() {
   const [blockedItemMessage, setBlockedItemMessage] = useState<string | null>(null)
   const lorePlayedRef = useRef(false)
 
-  const timerStartedRef = useRef(false)
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeUpSentRef = useRef(false)
-  const skipTimerInitRef = useRef(false)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
   const doorVideoRef = useRef<HTMLVideoElement | null>(null)
   const closeModalRef = useRef<() => void>(() => {})
@@ -127,6 +126,44 @@ export default function GamePage() {
     setStatus(text)
     setStatusError(isError)
   }, [])
+
+  const handleTimeUp = useCallback(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = null
+    }
+    setGameOver(true)
+    if (gameId && !timeUpSentRef.current) {
+      timeUpSentRef.current = true
+      reportTimeUp(gameId).catch(() => {})
+    }
+  }, [gameId])
+
+  const startTimerFromServerTime = useCallback(
+    (startedAt: string) => {
+      const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+      let remaining = Math.max(INITIAL_TIMER_SECONDS - elapsed, 0)
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
+      }
+      if (remaining === 0) {
+        handleTimeUp()
+        return
+      }
+      setSecondsLeft(remaining)
+      timerIntervalRef.current = setInterval(() => {
+        remaining -= 1
+        setSecondsLeft(remaining)
+        if (remaining <= 0 && timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current)
+          timerIntervalRef.current = null
+          handleTimeUp()
+        }
+      }, 1000)
+    },
+    [handleTimeUp]
+  )
 
   const speakWithBrowserTTS = useCallback((text: string, onEnd?: () => void) => {
     if (!text.trim()) {
@@ -241,6 +278,10 @@ export default function GamePage() {
       showStatus(MESSAGES.START_IN_GROUP, false)
       return
     }
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = null
+    }
     setRoomLoading(true)
     setRoomImageLoaded(false)
     setSolvedItemIds([])
@@ -264,10 +305,7 @@ export default function GamePage() {
         if (data.started_at) {
           setGameStarted(true)
           setStartUIVisible(false)
-          const startedMs = new Date(data.started_at).getTime()
-          const elapsedSec = Math.floor((Date.now() - startedMs) / 1000)
-          setSecondsLeft(Math.max(0, INITIAL_TIMER_SECONDS - elapsedSec))
-          skipTimerInitRef.current = true
+          startTimerFromServerTime(data.started_at)
         }
       })
       .catch((e: ApiError) => {
@@ -276,7 +314,7 @@ export default function GamePage() {
         const msg = e?.detail ?? (e?.status === 404 ? MESSAGES.GAME_NOT_FOUND : MESSAGES.LOAD_ERROR)
         showStatus(msg, true)
       })
-  }, [gameId, showStatus])
+  }, [gameId, showStatus, startTimerFromServerTime])
 
   const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
   useEffect(() => {
@@ -285,43 +323,23 @@ export default function GamePage() {
   }, [roomLoading, hasRoomImage])
 
   const showTimer = (room?.room_items?.length ?? 0) > 0 && !roomLoading && gameStarted
-  useEffect(() => {
-    if (!showTimer) return
-    if (!timerStartedRef.current) {
-      timerStartedRef.current = true
-      if (!skipTimerInitRef.current) setSecondsLeft(INITIAL_TIMER_SECONDS)
-      else skipTimerInitRef.current = false
-    }
-    const id = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(id)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(id)
-  }, [showTimer])
-
-  useEffect(() => {
-    if (!showTimer || !gameId || secondsLeft > 0 || timeUpSentRef.current) return
-    timeUpSentRef.current = true
-    reportTimeUp(gameId).catch(() => {})
-  }, [showTimer, gameId, secondsLeft])
-
-  useEffect(() => {
-    if (!showTimer) timerStartedRef.current = false
-  }, [showTimer])
 
   useEffect(() => {
     timeUpSentRef.current = false
-    timerStartedRef.current = false
-    skipTimerInitRef.current = false
   }, [gameId])
 
   const onStartClick = useCallback(async () => {
-    if (gameId) startGame(gameId).catch(() => {})
+    if (gameId) {
+      startGame(gameId)
+        .then((res) => {
+          if (res.started_at) {
+            startTimerFromServerTime(res.started_at)
+            setGameStarted(true)
+            setStartUIVisible(false)
+          }
+        })
+        .catch(() => {})
+    }
     const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
     const unlockedAudioEl = new Audio(SILENT_WAV)
     unlockedAudioEl.play().catch(() => {})
@@ -329,9 +347,7 @@ export default function GamePage() {
     const situationText = room?.room_lore || room?.room_description || ''
     console.log('[audio] onStartClick: gameId=', gameId, 'situationText length=', situationText.length)
     const onNarrationEnd = () => {
-      console.log('[audio] onStartClick: narration ended, hiding button')
-      setStartUIVisible(false)
-      setGameStarted(true)
+      console.log('[audio] onStartClick: narration ended')
       setLoreNarrationActive(false)
     }
     setLoreNarrationActive(true)
@@ -353,7 +369,7 @@ export default function GamePage() {
       }
     }
     playLoreAudio(gameId, situationText, onNarrationEnd, ctx, unlockedAudioEl)
-  }, [gameId, room?.room_lore, room?.room_description, playLoreAudio])
+  }, [gameId, room?.room_lore, room?.room_description, playLoreAudio, startTimerFromServerTime])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -362,8 +378,27 @@ export default function GamePage() {
     const ws = new WebSocket(url)
     ws.onmessage = (ev) => {
       try {
-        const data = JSON.parse(ev.data) as PuzzleSolvedEvent | { event: string }
-        if (data.event === 'game_over') {
+        const data = JSON.parse(ev.data) as {
+          event?: string
+          type?: string
+          started_at?: string
+          reason?: string
+          item_id?: string
+          item_label?: string
+          answer?: string
+          solver_name?: string
+        }
+        if (data.type === 'game_started' && data.started_at) {
+          startTimerFromServerTime(data.started_at)
+          setGameStarted(true)
+          setStartUIVisible(false)
+          return
+        }
+        if (data.type === 'game_over' || data.event === 'game_over') {
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current)
+            timerIntervalRef.current = null
+          }
           setGameOver(true)
           return
         }
@@ -396,7 +431,7 @@ export default function GamePage() {
         puzzleSolvedTimeoutRef.current = null
       }
     }
-  }, [gameId, room])
+  }, [gameId, room, startTimerFromServerTime])
 
   const onRoomImageLoad = useCallback(() => {
     setRoomImageLoaded(true)

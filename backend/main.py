@@ -1,5 +1,6 @@
 # pyright: reportMissingImports=false
 """Application bootstrap: wires routers, webhook, static; starts bot on startup."""
+import asyncio
 import logging
 
 import uvicorn
@@ -15,6 +16,7 @@ from api.routes.pages_routes import router as pages_router
 from api.routes.health_routes import router as health_router
 from api.routes.media_routes import router as media_router
 from api.bot.app import create_telegram_app, run_telegram
+from services.game_lifecycle_service import check_expired_games_loop
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,7 @@ async def startup_event():
     init_db()
     tg_app = create_telegram_app()
     app.state.tg_app = tg_app
+    asyncio.create_task(check_expired_games_loop())
     await run_telegram(tg_app)
 
 

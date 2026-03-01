@@ -174,9 +174,9 @@ export async function reportTimeUp(gameId: string): Promise<{ ok: boolean; messa
 }
 
 /**
- * POST /api/games/{game_id}/start – record that the game has started (first "התחל" click). Enables rejoin with correct timer.
+ * POST /api/games/{game_id}/start – record that the game has started (first "התחל" click). Returns server-set started_at; broadcasts to other clients.
  */
-export async function startGame(gameId: string): Promise<{ ok: boolean }> {
+export async function startGame(gameId: string): Promise<{ started_at: string }> {
   const res = await fetch(gameUrl(gameId) + '/start', { method: 'POST', headers: gameHeaders() })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
@@ -235,4 +235,16 @@ export interface GameOverEvent {
 
 export interface DoorOpenedEvent {
   event: 'door_opened'
+}
+
+/** Server broadcast when game start is recorded (timer starts from started_at). */
+export interface GameStartedEvent {
+  type: 'game_started'
+  started_at: string
+}
+
+/** Server broadcast when game ends (timeout or solved). */
+export interface GameOverEventWithReason {
+  type: 'game_over'
+  reason: 'timeout' | 'solved'
 }

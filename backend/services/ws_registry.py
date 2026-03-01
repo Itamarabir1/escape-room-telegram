@@ -65,9 +65,14 @@ async def broadcast_puzzle_solved(
     await _broadcast(game_id, payload)
 
 
-async def broadcast_game_over(game_id: str) -> None:
+async def broadcast_game_over(game_id: str, reason: str = "timeout") -> None:
     """Send game_over event to all connections for this game (e.g. timer expired)."""
-    await _broadcast(game_id, {"event": "game_over"})
+    await _broadcast(game_id, {"type": "game_over", "reason": reason})
+
+
+async def broadcast_game_started(game_id: str, started_at: str) -> None:
+    """Notify all clients that the game has started (server-set started_at)."""
+    await _broadcast(game_id, {"type": "game_started", "started_at": started_at})
 
 
 async def broadcast_door_opened(game_id: str) -> None:

@@ -24,6 +24,8 @@ def start_registration(chat_data: dict[str, Any]) -> None:
     chat_data["game_active"] = False
     chat_data.pop("game_id", None)
     chat_data.pop("registration_msg_id", None)
+    chat_data.pop("lobby_msg_id", None)
+    chat_data.pop("lobby_host_id", None)
 
 
 def add_player(chat_data: dict[str, Any], user_id: int, name: str) -> bool:
@@ -99,6 +101,8 @@ def end_game_chat(chat_data: dict[str, Any]) -> None:
     chat_data["game_active"] = False
     chat_data["players"] = {}
     chat_data.pop("registration_msg_id", None)
+    chat_data.pop("lobby_msg_id", None)
+    chat_data.pop("lobby_host_id", None)
     chat_data.pop("started_by_user_id", None)
 
 
@@ -106,3 +110,13 @@ def end_game_by_id(game_id: str) -> None:
     """Remove game from store (Redis + in-memory)."""
     _games_by_id.pop(game_id, None)
     redis_delete_game(game_id)
+
+
+def get_timed_games_snapshot() -> list[tuple[str, dict[str, Any]]]:
+    """Return list of (game_id, game) for games that have started_at and are not game_over.
+    Used by the expired-games background task. Only includes in-memory games."""
+    result: list[tuple[str, dict[str, Any]]] = []
+    for gid, g in list(_games_by_id.items()):
+        if g.get("started_at") and not g.get("game_over"):
+            result.append((gid, g))
+    return result

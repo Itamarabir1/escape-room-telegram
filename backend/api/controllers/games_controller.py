@@ -21,14 +21,18 @@ from services.game_lifecycle_service import (
 )
 from config.paths import LORE_WAV_PATH
 from services.game_session import save_game
+from services.ws_registry import broadcast_game_started
 
 logger = logging.getLogger(__name__)
 
 
 async def game_start(game_id: str, request: Request) -> dict:
     game = get_game_for_request(game_id, request)
+    had_started = bool(game.get("started_at"))
     record_game_start(game_id, game)
-    return {"ok": True}
+    if not had_started and game.get("started_at"):
+        await broadcast_game_started(game_id, game["started_at"])
+    return {"started_at": game["started_at"]}
 
 
 async def game_time_up(game_id: str, request: Request) -> dict:

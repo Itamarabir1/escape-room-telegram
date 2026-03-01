@@ -1,5 +1,6 @@
 # pyright: reportMissingImports=false
 """Game lifecycle: start, time up, door opened. Pure business logic; raises HTTPException where appropriate."""
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -7,7 +8,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from services.game_api_service import all_unlock_puzzles_solved
-from services.game_session import end_game_by_id, save_game
+from services.game_session import end_game_by_id, get_timed_games_snapshot, save_game
 from repositories.group_repository import set_finished_at
 from services.ws_registry import broadcast_door_opened, broadcast_game_over
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 TIME_UP_MESSAGE = "⏰ הזמן נגמר! Game Over.\n\nהמשחק הסתיים. כתבו /start_game כדי להתחיל מחדש."
 DOOR_NOT_READY_DETAIL = "עדיין לא פתרתם את כל החידות בחדר."
+TOTAL_SECONDS = 60 * 60  # 60 minutes
 
 
 def record_game_start(game_id: str, game: dict[str, Any]) -> None:
@@ -54,3 +56,25 @@ async def handle_door_opened(game_id: str, game: dict[str, Any]) -> None:
     game["door_opened"] = True
     save_game(game_id, game)
     await broadcast_door_opened(game_id)
+
+
+async def check_expired_games_loop() -> None:
+    """Background task: every 10s check in-memory games for timer expiry; set game_over and broadcast."""
+    while True:
+        await asyncio.sleep(10)
+        now = datetime.now(timezone.utc)
+        for game_id, game in get_timed_games_snapshot():
+            try:
+                started_at_str = game.get("started_at")
+                if not started_at_str:
+                    continue
+                started = datetime.fromisoformat(started_at_str.replace("Z", "+00:00"))
+                elapsed = (now - started).total_seconds()
+                if elapsed >= TOTAL_SECONDS:
+                    game["game_over"] = True
+                    game["game_over_reason"] = "timeout"
+                    save_game(game_id, game)
+                    await broadcast_game_over(game_id, reason="timeout")
+                    logger.info("Game expired by timer: game_id=%s", game_id)
+            except Exception as e:
+                logger.warning("check_expired_games game_id=%s: %s", game_id, e)

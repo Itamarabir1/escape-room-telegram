@@ -8,6 +8,7 @@ from telegram.ext import ApplicationBuilder
 
 from config.config import config
 from api.bot.handlers.start import register_start_handler
+from api.bot.handlers.start_game import register_start_game_handler
 from api.bot.handlers.game import register_game_handlers
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 def create_telegram_app():
     application = ApplicationBuilder().token(config.TELEGRAM_TOKEN).build()
     register_start_handler(application)
+    register_start_game_handler(application)
     register_game_handlers(application)
     return application
 
