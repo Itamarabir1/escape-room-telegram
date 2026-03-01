@@ -21,16 +21,15 @@ def create_telegram_app():
 
 
 async def run_telegram(application) -> None:
-    """Initialize, start, and set webhook (production) or polling (local).
-    When VITE_API_URL is set we only set_webhook; we do not call getUpdates/polling to avoid Conflict."""
+    """Initialize and either set webhook (production) or start polling (local).
+    When VITE_API_URL is set we only set_webhook; polling is never started to avoid Conflict (getUpdates + webhook)."""
     await application.initialize()
     await application.start()
     if config.VITE_API_URL:
         base = config.VITE_API_URL.rstrip("/")
         webhook_url = f"{base}/webhook"
         await application.bot.set_webhook(url=webhook_url)
-        logger.info("Webhook set: %s", webhook_url)
-        # Do not start polling when webhook is active (would cause Conflict)
+        logger.info("Webhook set: %s (polling disabled)", webhook_url)
     else:
         try:
             await application.updater.start_polling()

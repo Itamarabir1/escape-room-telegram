@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telegram Bot - חדר בריחה")
 
-# CORS: always allow production frontend + WEBAPP_URL if set + localhost for dev
+# CORS: allow frontend origin (fixes CORS / Access-Control-Allow-Origin when loading the game)
 _frontend_origin = "https://escape-room-telegram.onrender.com"
 _origins = [_frontend_origin, "http://localhost:3000", "http://localhost:5173"]
 if config.WEBAPP_URL and config.WEBAPP_URL not in _origins:
