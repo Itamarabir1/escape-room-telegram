@@ -25,4 +25,5 @@ ENV PYTHONPATH=/app/backend
 EXPOSE 8000
 
 # PORT is set by Render or docker-compose.
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# timeout-keep-alive 0: avoid closing WebSocket after ~10s; ws-ping keeps connection alive.
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --timeout-keep-alive 0 --ws-ping-interval 20 --ws-ping-timeout 60"]

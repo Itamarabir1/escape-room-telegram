@@ -81,4 +81,7 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=config.PORT,
         reload=config.MODE != "production",
+        timeout_keep_alive=0,
+        ws_ping_interval=20.0,
+        ws_ping_timeout=60.0,
     )
