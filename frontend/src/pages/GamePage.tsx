@@ -30,7 +30,7 @@ declare global {
         version?: string
         ready?: () => void | Promise<void>
         expand?: () => void
-        initDataUnsafe?: { user?: { first_name?: string } }
+        initDataUnsafe?: { user?: { first_name?: string }; start_param?: string }
         sendData?: (data: string) => void
         BackButton?: {
           show: () => void
@@ -89,7 +89,13 @@ export default function GamePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setGameId(params.get('game_id'))
+    const fromUrl = params.get('game_id')
+    if (fromUrl) {
+      setGameId(fromUrl)
+      return
+    }
+    const fromStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+    if (fromStartParam) setGameId(fromStartParam)
   }, [])
 
   const showStatus = useCallback((text: string, isError: boolean) => {
@@ -371,6 +377,10 @@ export default function GamePage() {
     setRoomImageLoaded(true)
   }, [])
 
+  const onRoomImageError = useCallback(() => {
+    setRoomImageLoaded(true)
+  }, [])
+
   useEffect(() => {
     const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
     if (!hasRoomImage || !roomImageLoaded) return
@@ -613,6 +623,7 @@ export default function GamePage() {
           taskModalOpen={taskModalOpen}
           panoramaRef={panoramaRef}
           onRoomImageLoad={onRoomImageLoad}
+          onRoomImageError={onRoomImageError}
           onHotspotClick={handleHotspotClick}
           openTask={openTask}
           solvedItemIds={solvedItemIds}

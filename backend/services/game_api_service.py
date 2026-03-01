@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def apply_demo_room(game: dict[str, Any]) -> None:
-    """Inject demo room items, puzzles, and static room image URL. Mutates game in place."""
-    base = config.base_url().rstrip("/")
-    game["room_image_url"] = f"{base}/room/escape_room.png"
+    """Inject demo room items, puzzles, and static room image URL. Mutates game in place.
+    room_image_url must point to the API (backend) that serves /room/escape_room.png, not the frontend."""
+    api_base = (config.VITE_API_URL or "http://localhost:8000").strip().rstrip("/")
+    game["room_image_url"] = f"{api_base}/room/escape_room.png"
     game["room_image_width"] = DEMO_ROOM_WIDTH
     game["room_image_height"] = DEMO_ROOM_HEIGHT
     game["room_name"] = DEMO_ROOM_META["room_name"]

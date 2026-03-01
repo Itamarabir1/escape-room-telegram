@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import type { GameStateResponse, RoomItemResponse } from '../api/client'
-import { DEMO_ROOM_WIDTH, DEMO_ROOM_HEIGHT } from '../api/client'
+import { DEMO_ROOM_WIDTH, DEMO_ROOM_HEIGHT, getRoomMediaUrl } from '../api/client'
 import { ROOM_HOTSPOT_SHAPES } from '../constants/roomHotspots'
 
 type RoomViewProps = {
@@ -12,6 +12,7 @@ type RoomViewProps = {
   taskModalOpen: boolean
   panoramaRef: RefObject<HTMLDivElement>
   onRoomImageLoad: () => void
+  onRoomImageError?: () => void
   onHotspotClick: (params: {
     item: RoomItemResponse
     shapeItemId: string
@@ -32,6 +33,7 @@ export function RoomView({
   taskModalOpen,
   panoramaRef,
   onRoomImageLoad,
+  onRoomImageError,
   onHotspotClick,
   openTask,
   solvedItemIds,
@@ -43,10 +45,21 @@ export function RoomView({
         <div className="room-wrapper" ref={panoramaRef}>
           <div className="room-container">
             <img
-              src={room.room_image_url!}
+              src={
+                room.room_image_url?.startsWith('/')
+                  ? getRoomMediaUrl('escape_room.png')
+                  : (room.room_image_url ?? getRoomMediaUrl('escape_room.png'))
+              }
               className="room-image"
               alt="חדר בריחה"
               onLoad={onRoomImageLoad}
+              onError={(e) => {
+                console.error(
+                  'Room image failed to load (404/403 or wrong MIME):',
+                  e.currentTarget?.src ?? room.room_image_url
+                )
+                onRoomImageError?.()
+              }}
             />
             <svg
               className={`room-hotspots-svg ${!gameStarted ? 'room-hotspots-disabled' : ''} ${taskModalOpen ? 'room-hotspots-svg--modal-open' : ''}`}
