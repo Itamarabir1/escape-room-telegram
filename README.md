@@ -59,9 +59,9 @@ docker compose up --build
    - **escape-room-telegram** – frontend (Docker: `frontend/Dockerfile`, nginx).
    - Postgres + Redis (keyvalue).
 4. ב-**Environment** של כל שירות:
-   - **Backend (escape-room-telegram-api):** `TELEGRAM_TOKEN`, `WEBAPP_URL` = כתובת הפרונט (`https://escape-room-telegram.onrender.com`), **`BACKEND_PUBLIC_URL`** = כתובת הבקאנד (`https://escape-room-telegram-api.onrender.com`) – ל-webhook של טלגרם, ושאר ה-secrets מ-`escape-room-secrets`.
-   - **Frontend (escape-room-telegram):** `VITE_API_URL` = כתובת הבקאנד (`https://escape-room-telegram-api.onrender.com`), `VITE_BASE_PATH` = `/` (לבנייה ל-root).
-5. אחרי הפריסה, עדכן ב-@BotFather את ה-Web App URL לכתובת **הפרונט** (`https://escape-room-telegram.onrender.com/game`).
+   - **Backend (escape-room-telegram-api):** `TELEGRAM_TOKEN`, `WEBAPP_URL` = `https://escape-room-telegram.onrender.com`, **`BACKEND_PUBLIC_URL`** = `https://escape-room-telegram-api.onrender.com` (הבקאנד קובע אוטומטית את ה-webhook ל-`https://escape-room-telegram-api.onrender.com/webhook`), ושאר ה-secrets מ-`escape-room-secrets`.
+   - **Frontend (escape-room-telegram):** **`VITE_API_URL`** = `https://escape-room-telegram-api.onrender.com`, `VITE_BASE_PATH` = `/`.
+5. **Telegram:** הבוט קובע את ה-webhook בהפעלה. אם תגדיר ידנית ב-@BotFather, השתמש ב-`https://escape-room-telegram-api.onrender.com/webhook`. עדכן ב-@BotFather את **Web App URL** לכתובת הפרונט: `https://escape-room-telegram.onrender.com/game`.
 
 **אין צורך יותר** לבנות `frontend/dist` locally ולהעלות ל-Git – הפרונט נבנה על Render מתוך `frontend/Dockerfile`.
 

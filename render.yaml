@@ -1,5 +1,10 @@
+# Blueprint: API, Frontend, Postgres, Redis only.
+# - escape-room-telegram-api (backend, webhook at /webhook)
+# - escape-room-telegram (frontend SPA)
+# - escape-room-telegram-postgres (database)
+# - escape-room-telegram-redis (keyvalue)
 services:
-  # Backend API + Telegram bot (serves only API; frontend at escape-room-telegram)
+  # Backend API + Telegram bot (webhook: https://escape-room-telegram-api.onrender.com/webhook)
   - type: web
     name: escape-room-telegram-api
     runtime: docker
@@ -16,15 +21,15 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
-      # WEBAPP_URL = frontend URL for /game redirect (https://escape-room-telegram.onrender.com)
+      # Frontend URL for /game redirect
       - key: WEBAPP_URL
         sync: false
-      # BACKEND_PUBLIC_URL = this service URL for Telegram webhook (https://escape-room-telegram-api.onrender.com)
+      # Must be https://escape-room-telegram-api.onrender.com (used to set Telegram webhook to .../webhook)
       - key: BACKEND_PUBLIC_URL
         sync: false
       - fromGroup: escape-room-secrets
 
-  # Frontend SPA (nginx) – main app URL; set VITE_API_URL to backend URL
+  # Frontend SPA (nginx) – main app at https://escape-room-telegram.onrender.com
   - type: web
     name: escape-room-telegram
     runtime: docker
@@ -32,7 +37,7 @@ services:
     repo: https://github.com/Itamarabir1/escape-room-telegram
     plan: free
     envVars:
-      # Backend URL for API and WebSocket (https://escape-room-telegram-api.onrender.com)
+      # Must be https://escape-room-telegram-api.onrender.com (backend API + WebSocket)
       - key: VITE_API_URL
         sync: false
       - key: VITE_BASE_PATH
@@ -41,7 +46,6 @@ services:
   - type: keyvalue
     name: escape-room-telegram-redis
     plan: free
-    # כאן התיקון ל-Redis - מאפשר גישה לשירותים שלך
     ipAllowList:
       - source: 0.0.0.0/0
         description: everywhere
