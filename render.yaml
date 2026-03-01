@@ -39,15 +39,16 @@ services:
       - key: VITE_BASE_PATH
         value: /
 
+  # Key Value (Redis-compatible) – must be in services with type: keyvalue
+  - type: keyvalue
+    name: escape-room-telegram-redis
+    plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+
 # משאבי תשתית
 databases:
   - name: escape-room-telegram-postgres
     plan: free
     databaseName: escape_room_db
-
-keyvalues:
-  - name: escape-room-telegram-redis
-    plan: free
-    ipAllowList:
-      - source: 0.0.0.0/0
-        description: everywhere

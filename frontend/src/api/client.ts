@@ -1,6 +1,7 @@
 /**
  * Game API client – single place for all frontend→backend calls.
  * Contract: matches backend app/api/games.py (prefix /api/games).
+ * All requests use absolute API URL (VITE_API_URL or default) so the static server never intercepts them (no relative /api/... that would return index.html).
  */
 
 /** Default API base when VITE_API_URL is missing or empty. Use production URL when app is served from production frontend. */
