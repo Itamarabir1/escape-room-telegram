@@ -1,4 +1,5 @@
 import type { RefObject } from 'react'
+import { getRoomMediaUrl } from '../api/client'
 
 type ScienceLabRoomProps = {
   panoramaRef: RefObject<HTMLDivElement>
@@ -12,7 +13,7 @@ export function ScienceLabRoom(props: ScienceLabRoomProps) {
       <div className="room-wrapper science-lab-room-panorama" ref={panoramaRef}>
         <div className="room-container">
           <img
-            src="/room/science_lab_room.png"
+            src={getRoomMediaUrl('science_lab_room.png')}
             alt="מעבדה"
             className="room-image"
             onLoad={onImageLoad}

@@ -12,6 +12,12 @@ function getApiBase(): string {
   return base || API_BASE_URL_FALLBACK
 }
 
+/** Base URL for room/media assets served by the API (e.g. /room/escape_room.png). Use for img/video src. */
+export function getRoomMediaUrl(path: string): string {
+  const p = path.replace(/^\/+/, '')
+  return getApiBase() + '/room/' + p
+}
+
 function apiBaseUrl(): string {
   return getApiBase() + '/api/games'
 }

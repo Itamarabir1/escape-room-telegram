@@ -1,9 +1,11 @@
 /** Initial countdown duration in seconds (01:00:00). */
 export const INITIAL_TIMER_SECONDS = 3600
 
+import { getRoomMediaUrl } from '../api/client'
+
 /** Door opening video – served by backend from images/door_open.mp4 at same base as room image */
 export function getDoorVideoSrc(roomImageUrl: string | undefined): string {
-  if (!roomImageUrl) return '/room/door_open.mp4'
+  if (!roomImageUrl) return getRoomMediaUrl('door_open.mp4')
   return roomImageUrl.replace(/escape_room\.png$/i, 'door_open.mp4')
 }
 
