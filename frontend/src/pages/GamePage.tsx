@@ -7,7 +7,6 @@ import {
   notifyDoorOpened,
   reportTimeUp,
   sendGameAction,
-  startGame,
   type ApiError,
   type GameStateResponse,
   type PuzzleSolvedEvent,
@@ -20,7 +19,6 @@ import { Banners } from '../components/Banners'
 import { DoorVideoOverlay } from '../components/DoorVideoOverlay'
 import { RoomView } from '../components/RoomView'
 import { ScienceLabRoom } from '../components/ScienceLabRoom'
-import { StartUI } from '../components/StartUI'
 import { TaskModal } from '../components/TaskModal'
 import '../index.css'
 
@@ -89,7 +87,7 @@ export default function GamePage() {
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_TIMER_SECONDS)
   const [gameOver, setGameOver] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
-  const [startUIVisible, setStartUIVisible] = useState(true)
+  const [timerVisible, setTimerVisible] = useState(false)
   const [loreNarrationActive, setLoreNarrationActive] = useState(false)
   const panoramaRef = useRef<HTMLDivElement>(null)
   const scienceLabPanoramaRef = useRef<HTMLDivElement>(null)
@@ -104,6 +102,7 @@ export default function GamePage() {
 
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeUpSentRef = useRef(false)
+  const pollCleanupRef = useRef<(() => void) | null>(null)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
   const doorVideoRef = useRef<HTMLVideoElement | null>(null)
   const closeModalRef = useRef<() => void>(() => {})
@@ -273,6 +272,74 @@ export default function GamePage() {
     [speakWithBrowserTTS]
   )
 
+  const triggerLoreNarration = useCallback(
+    (roomData: GameStateResponse | null | undefined, onNarrationEnd?: () => void) => {
+      const situationText = roomData?.room_lore || roomData?.room_description || ''
+      const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+      const unlockedAudioEl = new Audio(SILENT_WAV)
+      unlockedAudioEl.play().catch(() => {})
+
+      if (!situationText) {
+        onNarrationEnd?.()
+        return
+      }
+
+      setLoreNarrationActive(true)
+
+      const handleNarrationEnd = () => {
+        setLoreNarrationActive(false)
+        onNarrationEnd?.()
+      }
+
+      if (!gameId) {
+        handleNarrationEnd()
+        return
+      }
+
+      const AudioContextClass = typeof window !== 'undefined' && (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+      if (AudioContextClass) {
+        try {
+          const ctx = new AudioContextClass()
+          ctx.resume().then(() => {
+            playLoreAudio(gameId, situationText, handleNarrationEnd, ctx, unlockedAudioEl)
+          }).catch(() => {
+            playLoreAudio(gameId, situationText, handleNarrationEnd, null, unlockedAudioEl)
+          })
+        } catch {
+          playLoreAudio(gameId, situationText, handleNarrationEnd, null, unlockedAudioEl)
+        }
+      } else {
+        playLoreAudio(gameId, situationText, handleNarrationEnd, null, unlockedAudioEl)
+      }
+    },
+    [gameId, playLoreAudio]
+  )
+
+  const waitForStart = useCallback(() => {
+    const pollInterval = setInterval(async () => {
+      if (!gameId) return
+      try {
+        const data = await getGameState(gameId)
+        if (data.started_at) {
+          clearInterval(pollInterval)
+          setGameStarted(true)
+          setRoom(data)
+          setSolvedItemIds(data.solved_item_ids ?? [])
+          if (data.door_opened) {
+            setDoorVideoPlaying(false)
+            setScienceLabImageLoaded(false)
+            setShowScienceLabRoom(true)
+          }
+          startTimerFromServerTime(data.started_at)
+          triggerLoreNarration(data, () => setTimerVisible(true))
+        }
+      } catch {
+        // ignore
+      }
+    }, 3000)
+    return () => clearInterval(pollInterval)
+  }, [gameId, startTimerFromServerTime, triggerLoreNarration])
+
   useEffect(() => {
     if (!gameId) {
       showStatus(MESSAGES.START_IN_GROUP, false)
@@ -282,11 +349,13 @@ export default function GamePage() {
       clearInterval(timerIntervalRef.current)
       timerIntervalRef.current = null
     }
+    pollCleanupRef.current?.()
+    pollCleanupRef.current = null
     setRoomLoading(true)
     setRoomImageLoaded(false)
     setSolvedItemIds([])
     setGameStarted(false)
-    setStartUIVisible(true)
+    setTimerVisible(false)
     setLoreNarrationActive(false)
     lorePlayedRef.current = false
     getGameState(gameId)
@@ -295,8 +364,6 @@ export default function GamePage() {
         showStatus('', false)
         setRoom(data)
         setSolvedItemIds(data.solved_item_ids ?? [])
-        // If the door was already opened in this game (persisted on backend),
-        // resume directly in the second room (science lab) without replaying the video.
         if (data.door_opened) {
           setDoorVideoPlaying(false)
           setScienceLabImageLoaded(false)
@@ -304,8 +371,11 @@ export default function GamePage() {
         }
         if (data.started_at) {
           setGameStarted(true)
-          setStartUIVisible(false)
           startTimerFromServerTime(data.started_at)
+          setTimerVisible(false)
+          triggerLoreNarration(data, () => setTimerVisible(true))
+        } else {
+          pollCleanupRef.current = waitForStart()
         }
       })
       .catch((e: ApiError) => {
@@ -314,7 +384,11 @@ export default function GamePage() {
         const msg = e?.detail ?? (e?.status === 404 ? MESSAGES.GAME_NOT_FOUND : MESSAGES.LOAD_ERROR)
         showStatus(msg, true)
       })
-  }, [gameId, showStatus, startTimerFromServerTime])
+    return () => {
+      pollCleanupRef.current?.()
+      pollCleanupRef.current = null
+    }
+  }, [gameId, showStatus, startTimerFromServerTime, triggerLoreNarration, waitForStart])
 
   const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
   useEffect(() => {
@@ -322,54 +396,11 @@ export default function GamePage() {
     return () => document.body.classList.remove('game-has-room')
   }, [roomLoading, hasRoomImage])
 
-  const showTimer = (room?.room_items?.length ?? 0) > 0 && !roomLoading && gameStarted
+  const showTimer = (room?.room_items?.length ?? 0) > 0 && !roomLoading && gameStarted && timerVisible
 
   useEffect(() => {
     timeUpSentRef.current = false
   }, [gameId])
-
-  const onStartClick = useCallback(async () => {
-    if (gameId) {
-      startGame(gameId)
-        .then((res) => {
-          if (res.started_at) {
-            startTimerFromServerTime(res.started_at)
-            setGameStarted(true)
-            setStartUIVisible(false)
-          }
-        })
-        .catch(() => {})
-    }
-    const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
-    const unlockedAudioEl = new Audio(SILENT_WAV)
-    unlockedAudioEl.play().catch(() => {})
-
-    const situationText = room?.room_lore || room?.room_description || ''
-    console.log('[audio] onStartClick: gameId=', gameId, 'situationText length=', situationText.length)
-    const onNarrationEnd = () => {
-      console.log('[audio] onStartClick: narration ended')
-      setLoreNarrationActive(false)
-    }
-    setLoreNarrationActive(true)
-    if (!gameId || !situationText) {
-      console.log('[audio] onStartClick: no gameId or situationText, hiding button immediately')
-      onNarrationEnd()
-      return
-    }
-    let ctx: AudioContext | null = null
-    const AudioContextClass = typeof window !== 'undefined' && (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
-    if (AudioContextClass) {
-      try {
-        ctx = new AudioContextClass()
-        await ctx.resume()
-        console.log('[audio] onStartClick: AudioContext resumed, state=', ctx.state)
-      } catch (e) {
-        console.warn('[audio] onStartClick: AudioContext resume failed', e)
-        ctx = null
-      }
-    }
-    playLoreAudio(gameId, situationText, onNarrationEnd, ctx, unlockedAudioEl)
-  }, [gameId, room?.room_lore, room?.room_description, playLoreAudio, startTimerFromServerTime])
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -391,7 +422,8 @@ export default function GamePage() {
         if (data.type === 'game_started' && data.started_at) {
           startTimerFromServerTime(data.started_at)
           setGameStarted(true)
-          setStartUIVisible(false)
+          setTimerVisible(false)
+          triggerLoreNarration(room, () => setTimerVisible(true))
           return
         }
         if (data.type === 'game_over' || data.event === 'game_over') {
@@ -431,7 +463,7 @@ export default function GamePage() {
         puzzleSolvedTimeoutRef.current = null
       }
     }
-  }, [gameId, room, startTimerFromServerTime])
+  }, [gameId, room, startTimerFromServerTime, triggerLoreNarration])
 
   const onRoomImageLoad = useCallback(() => {
     setRoomImageLoaded(true)
@@ -564,7 +596,6 @@ export default function GamePage() {
   const roomItems = room?.room_items ?? []
   const selectedPuzzle = selectedItem ? getPuzzleByItemId(room, selectedItem.id) : null
   const hasImage = Boolean(room?.room_image_url)
-  const situationText = room?.room_lore || room?.room_description || ''
   const roomReady = !roomLoading && (hasImage ? roomImageLoaded : true)
   const showLoadingOverlay = showRoomSection || roomLoading
 
@@ -576,7 +607,7 @@ export default function GamePage() {
       solvedItemIds: string[]
     }) => {
       const { item, shapeItemId, allPuzzlesSolved: allSolved, solvedItemIds: solved } = params
-      if (!gameStarted) return
+      if (!gameStarted || loreNarrationActive) return
       if (shapeItemId === 'door') {
         if (!allSolved) {
           setDoorLockedMessage(true)
@@ -594,7 +625,7 @@ export default function GamePage() {
       }
       openTask(item)
     },
-    [gameStarted, gameId, openTask]
+    [gameStarted, loreNarrationActive, gameId, openTask]
   )
 
   const handleDoorVideoEnded = useCallback(() => {
@@ -634,14 +665,12 @@ export default function GamePage() {
         status={status}
         statusError={statusError}
       />
-      {showRoomSection && roomReady && startUIVisible && (
-        <StartUI
-          situationText={situationText}
-          loreNarrationActive={loreNarrationActive}
-          onStartClick={onStartClick}
-        />
+      {room && !roomLoading && !gameStarted && (
+        <div className="waiting-screen">
+          <p>⏳ ממתין שהמשחק יתחיל...</p>
+        </div>
       )}
-      {showRoomSection && !roomLoading && room && (
+      {showRoomSection && !roomLoading && room && gameStarted && (
         <RoomView
           room={room}
           roomReady={roomReady}
