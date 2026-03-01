@@ -37,9 +37,9 @@ services:
     repo: https://github.com/Itamarabir1/escape-room-telegram
     plan: free
     envVars:
-      # Backend API URL (set to https://escape-room-telegram-api.onrender.com)
+      # Injected at build time so Vite bakes it into the bundle (Render passes envVars as Docker build args)
       - key: VITE_API_URL
-        sync: false
+        value: https://escape-room-telegram-api.onrender.com
       - key: VITE_BASE_PATH
         sync: false
 

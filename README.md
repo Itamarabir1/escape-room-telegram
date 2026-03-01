@@ -65,6 +65,8 @@ docker compose up --build
 
 **אין צורך יותר** לבנות `frontend/dist` locally ולהעלות ל-Git – הפרונט נבנה על Render מתוך `frontend/Dockerfile`.
 
+**אם הבוט לא מגיב / שגיאות מטלגרם:** בדוק בלוגים של שירות הבקאנד ב-Render. אם מופיעות שגיאות **"Unauthorized"** או **401** מטלגרם – הסיבה בדרך כלל היא ש-`TELEGRAM_TOKEN` חסר או שגוי. וודא ב-Environment של escape-room-telegram-api שהמשתנה `TELEGRAM_TOKEN` מוגדר עם הטוקן מ-@BotFather.
+
 ### בדיקת חיים
 
 - `GET /health` – קובץ ייעודי: `app/routes/health.py`. מחזיר `{"status": "awake", "mode": "production"}` (לסקריפטים חיצוניים ו-Render). `mode` מתוך `ENV` (ברירת מחדל: production).
