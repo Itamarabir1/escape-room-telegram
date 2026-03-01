@@ -24,15 +24,16 @@ services:
         value: https://escape-room-telegram-api.onrender.com
       - fromGroup: escape-room-secrets
 
-  # Frontend SPA (nginx)
+  # Frontend SPA (nginx) – build context must be repo root (dockerContext: .) so COPY frontend/... finds files
   - type: web
     name: escape-room-telegram
     runtime: docker
     dockerfilePath: frontend/Dockerfile
-    dockerContext: .  # מאפשר ל-Dockerfile לגשת לתיקיית frontend
+    dockerContext: .
     repo: https://github.com/Itamarabir1/escape-room-telegram
     plan: free
     envVars:
+      # Baked at build into JS; set in Render so Docker build gets VITE_API_URL
       - key: VITE_API_URL
         value: https://escape-room-telegram-api.onrender.com
       - key: VITE_BASE_PATH
