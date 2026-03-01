@@ -21,7 +21,7 @@ from services.game_lifecycle_service import (
 )
 from config.paths import LORE_WAV_PATH
 from services.game_session import save_game
-from services.ws_registry import broadcast_game_started
+from services.sse_registry import broadcast_game_started
 
 logger = logging.getLogger(__name__)
 

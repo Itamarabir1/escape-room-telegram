@@ -2,6 +2,9 @@
 
 בוט טלגרם עם Web App (FastAPI) לחדר בריחה.
 
+תקשורת Real-Time בין השרת לקליינטים מתבצעת באמצעות **SSE** (ולא WebSocket):
+`GET /sse/games/{game_id}?init_data=...`
+
 מבנה הפרויקט (Backend + Frontend): **`backend/ARCHITECTURE.md`**. חוזה API: **`backend/docs/API_CONTRACT.md`**.
 
 ## Docker (פיתוח מקומי – מומלץ)
@@ -42,9 +45,9 @@ docker compose up --build
 4. **הרצת השרת** (תמיד מתוך `backend`):
    ```bash
    cd backend
-   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
-   או: `uvicorn app.main:app --reload --port 8000`
+   או: `uvicorn main:app --reload --port 8000`
 
 5. **בדיקה**: פתח את הבוט בקבוצה → `/start_game` → הירשם → "כולם פה, אפשר להתחיל!" → הבוט ישלח לינק. פתח את הלינק **בדפדפן במחשב** – אם רצת עם Docker השתמש ב-`http://localhost:3000/game?game_id=...`, אם עם uvicorn + פרונט dev השתמש ב-`http://localhost:5173/game?game_id=...` (Vite עם proxy ל-API).
 
@@ -69,7 +72,7 @@ docker compose up --build
 
 ### בדיקת חיים
 
-- `GET /health` – קובץ ייעודי: `app/routes/health.py`. מחזיר `{"status": "awake", "mode": "production"}` (לסקריפטים חיצוניים ו-Render). `mode` מתוך `ENV` (ברירת מחדל: production).
+- `GET /health` – קובץ ייעודי: `backend/api/routes/health_routes.py`. מחזיר `{"status": "awake", "mode": "production"}` (לסקריפטים חיצוניים ו-Render). `mode` מתוך `ENV` (ברירת מחדל: production).
 
 ## מבנה הפרויקט (הפרדה backend / frontend)
 
@@ -88,7 +91,7 @@ docker compose up --build
 ## Backend – Layered Architecture
 
 - **`backend/ARCHITECTURE.md`** — סכמה (Mermaid) והסבר על השכבות
-- **Presentation** (`app/`): `main.py` (חיבור בלבד), `api/`, `routes/` (כולל **`routes/health.py`** – health ייעודי), `bot/`. ה-Web App **לא** מוגש מהבקאנד – `/game` מפנה ל-`WEBAPP_URL`.
+- **Presentation** (`backend/`): `main.py` (חיבור בלבד), `api/` (routes/controllers/bot handlers). ה-Web App **לא** מוגש מהבקאנד – `/game` מפנה ל-`WEBAPP_URL`.
 - **Application** (`services/`): `game_session.py` — לוגיקת משחק
 - **Domain** (`domain/`): `game.py` — סכמה (`GameStateResponse`, `HealthResponse`)
 - **Infrastructure**: `config.py` (כולל `MODE`), `utils/urls.py`

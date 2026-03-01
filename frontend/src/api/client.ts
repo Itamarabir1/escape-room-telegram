@@ -199,7 +199,7 @@ export async function notifyDoorOpened(gameId: string): Promise<{ ok: boolean }>
   return res.json()
 }
 
-/** Base URL for API (no path). Used to derive WebSocket URL. Never uses window.location so it never points to frontend. */
+/** Base URL origin (scheme+host). Never uses window.location so it never points to frontend. */
 function apiBaseOrigin(): string {
   const base = getApiBase()
   try {
@@ -210,17 +210,15 @@ function apiBaseOrigin(): string {
 }
 
 /**
- * WebSocket URL for real-time game events (e.g. puzzle_solved).
- * ws:// in dev, wss:// when origin is https.
+ * SSE URL for real-time game events (e.g. puzzle_solved).
+ * Uses query init_data because EventSource cannot send custom headers.
  */
-export function getGameWebSocketUrl(gameId: string): string {
+export function getGameSSEUrl(gameId: string): string {
   const origin = apiBaseOrigin()
-  const wsScheme = origin.startsWith('https') ? 'wss' : 'ws'
-  const host = origin.replace(/^https?:\/\//, '')
   const init = getInitData()
-  const path = `/ws/games/${encodeURIComponent(gameId)}`
+  const path = `/sse/games/${encodeURIComponent(gameId)}`
   const query = init ? `?init_data=${encodeURIComponent(init)}` : ''
-  return `${wsScheme}://${host}${path}${query}`
+  return `${origin}${path}${query}`
 }
 
 export interface PuzzleSolvedEvent {

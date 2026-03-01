@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from services.game_api_service import all_unlock_puzzles_solved
 from services.game_session import end_game_by_id, get_timed_games_snapshot, save_game
 from repositories.group_repository import set_finished_at
-from services.ws_registry import broadcast_door_opened, broadcast_game_over
+from services.sse_registry import broadcast_door_opened, broadcast_game_over
 
 logger = logging.getLogger(__name__)
 

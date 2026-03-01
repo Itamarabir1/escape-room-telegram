@@ -9,7 +9,7 @@ from domain.puzzle_status import PuzzleStatus
 from data.puzzle_dependencies import get_dependencies_for_item, get_block_message
 from services.game_api_service import item_label
 from services.game_session import save_game
-from services.ws_registry import broadcast_puzzle_solved
+from services.sse_registry import broadcast_puzzle_solved
 from utils.puzzle import (
     ITEM_SUCCESS_MESSAGES,
     SUCCESS_MESSAGE,

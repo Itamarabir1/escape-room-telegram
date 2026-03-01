@@ -11,7 +11,7 @@ from telegram import Update
 from config.config import config
 from infrastructure.database.session import init_db, wait_for_db
 from api.routes.games_routes import router as games_router
-from api.routes.ws_game_routes import router as ws_game_router
+from api.routes.sse_game_routes import router as sse_game_router
 from api.routes.pages_routes import router as pages_router
 from api.routes.health_routes import router as health_router
 from api.routes.media_routes import router as media_router
@@ -38,7 +38,7 @@ app.add_middleware(
 )
 
 app.include_router(games_router, prefix="/api")
-app.include_router(ws_game_router, prefix="/ws")
+app.include_router(sse_game_router, prefix="/sse")
 app.include_router(pages_router)
 app.include_router(health_router)
 app.include_router(media_router)
