@@ -23,20 +23,23 @@ def create_telegram_app():
 
 async def run_telegram(application) -> None:
     """Initialize and either set webhook (Render) or start polling (local).
-    When RENDER is set we use webhook only; when not set we delete_webhook() then poll to avoid Conflict."""
+    Always clear any existing webhook first to avoid 'getUpdates while webhook is active' conflict."""
     await application.initialize()
     await application.start()
-    use_webhook = bool(os.getenv("RENDER")) and config.VITE_API_URL
-    if use_webhook:
+
+    # Clear any old webhook before setting a new one or starting polling
+    await application.bot.delete_webhook(drop_pending_updates=True)
+    logger.info("Webhook cleared (drop_pending_updates=True)")
+
+    if os.getenv("RENDER") and config.VITE_API_URL:
         base = config.VITE_API_URL.rstrip("/")
         webhook_url = f"{base}/webhook"
         await application.bot.set_webhook(url=webhook_url)
         logger.info("Webhook set: %s (RENDER=1, polling disabled)", webhook_url)
     else:
-        await application.bot.delete_webhook(drop_pending_updates=True)
         try:
             await application.updater.start_polling()
-            logger.info("Polling started (local; webhook cleared)")
+            logger.info("Polling started (local)")
         except NetworkError as e:
             logger.warning(
                 "Polling failed (cannot reach Telegram): %s. On Render set RENDER and VITE_API_URL for webhook.",
