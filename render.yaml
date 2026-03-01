@@ -21,7 +21,7 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
-      # Frontend URL for /game redirect
+      # Frontend URL for /game redirect (set to https://escape-room-telegram.onrender.com)
       - key: WEBAPP_URL
         sync: false
       # Must be https://escape-room-telegram-api.onrender.com (used to set Telegram webhook to .../webhook)
@@ -37,7 +37,7 @@ services:
     repo: https://github.com/Itamarabir1/escape-room-telegram
     plan: free
     envVars:
-      # Must be https://escape-room-telegram-api.onrender.com (backend API + WebSocket)
+      # Backend API URL (set to https://escape-room-telegram-api.onrender.com)
       - key: VITE_API_URL
         sync: false
       - key: VITE_BASE_PATH
