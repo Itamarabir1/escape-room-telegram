@@ -1,24 +1,19 @@
 /**
  * Game API client – single place for all frontend→backend calls.
  * Contract: matches backend app/api/games.py (prefix /api/games).
- * All requests use absolute API URL (VITE_API_URL or default) so the static server never intercepts them (no relative /api/... that would return index.html).
+ * All requests use absolute API URL so the static server never intercepts them.
  */
 
-/** Default API base when VITE_API_URL is missing or empty. Use production URL when app is served from production frontend. */
-function getDefaultApiBase(): string {
-  if (typeof window !== 'undefined' && window.location.origin === 'https://escape-room-telegram.onrender.com') {
-    return 'https://escape-room-telegram-api.onrender.com'
-  }
-  return 'http://localhost:8000'
+const API_BASE_URL_FALLBACK = 'https://escape-room-telegram-api.onrender.com'
+
+function getApiBase(): string {
+  const raw = import.meta.env.VITE_API_URL || API_BASE_URL_FALLBACK
+  const base = typeof raw === 'string' ? String(raw).trim().replace(/\/+$/, '') : API_BASE_URL_FALLBACK
+  return base || API_BASE_URL_FALLBACK
 }
 
 function apiBaseUrl(): string {
-  const raw = import.meta.env.VITE_API_URL
-  const base =
-    typeof raw === 'string' && raw.trim()
-      ? raw.trim().replace(/\/+$/, '')
-      : getDefaultApiBase()
-  return base + '/api/games'
+  return getApiBase() + '/api/games'
 }
 
 const API_BASE = apiBaseUrl()
@@ -179,22 +174,14 @@ export async function notifyDoorOpened(gameId: string): Promise<{ ok: boolean }>
   return res.json()
 }
 
-/** Base URL for API (no path). Used to derive WebSocket URL. */
+/** Base URL for API (no path). Used to derive WebSocket URL. Never uses window.location so it never points to frontend. */
 function apiBaseOrigin(): string {
-  const raw = import.meta.env.VITE_API_URL
-  const base =
-    typeof raw === 'string' && raw.trim()
-      ? raw.trim().replace(/\/+$/, '')
-      : getDefaultApiBase()
-  if (base) {
-    try {
-      const u = new URL(base)
-      return u.origin
-    } catch {
-      return window.location.origin
-    }
+  const base = getApiBase()
+  try {
+    return new URL(base).origin
+  } catch {
+    return API_BASE_URL_FALLBACK
   }
-  return window.location.origin
 }
 
 /**
