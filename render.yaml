@@ -21,11 +21,11 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
-      # Frontend URL for /game redirect (set to https://escape-room-telegram.onrender.com)
+      # Frontend URL for /game redirect, game links, and CORS (e.g. https://escape-room-telegram.onrender.com)
       - key: WEBAPP_URL
         sync: false
-      # Must be https://escape-room-telegram-api.onrender.com (used to set Telegram webhook to .../webhook)
-      - key: BACKEND_PUBLIC_URL
+      # API URL for Telegram webhook (same as frontend VITE_API_URL; e.g. https://escape-room-telegram-api.onrender.com)
+      - key: VITE_API_URL
         sync: false
       - fromGroup: escape-room-secrets
 

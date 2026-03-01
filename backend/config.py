@@ -20,10 +20,10 @@ else:
 class Config:
     # --- תשתית ---
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-    # Frontend app URL (for /game redirect and game links in bot). After swap: https://escape-room-telegram.onrender.com
+    # Frontend app URL (for /game redirect, game links in bot, and CORS allow_origins). e.g. https://escape-room-telegram.onrender.com
     WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
-    # Backend public URL (for Telegram webhook). Must be the API service URL, e.g. https://escape-room-telegram-api.onrender.com
-    BACKEND_PUBLIC_URL = (os.getenv("BACKEND_PUBLIC_URL") or "").strip().rstrip("/")
+    # API public URL (for Telegram webhook). Same value as frontend's VITE_API_URL. e.g. https://escape-room-telegram-api.onrender.com
+    VITE_API_URL = (os.getenv("VITE_API_URL") or "").strip().rstrip("/")
     PORT = int(os.getenv("PORT", "8000"))
     MODE = os.getenv("ENV", "production")  # production | development
 

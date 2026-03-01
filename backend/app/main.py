@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telegram Bot - חדר בריחה")
 
+# CORS: allow WEBAPP_URL (frontend) and localhost for dev
+_origins = ["http://localhost:3000", "http://localhost:5173"]
+if config.WEBAPP_URL:
+    _origins.insert(0, config.WEBAPP_URL)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://escape-room-telegram.onrender.com",
-        "http://localhost:3000",
-        "http://localhost:5173",
-    ],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
