@@ -453,6 +453,7 @@ export default function GamePage() {
               : payload.item_id === 'safe_1'
                 ? 'הכספת נפתחה בהצלחה בתוכה יש מפתח'
                 : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
+        console.log('[WS] חידה נפתרה – מציג באנר לכל הקבוצה:', text, 'solver=', payload.solver_name)
         if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
         setPuzzleSolvedNotification(text)
         puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
@@ -578,6 +579,7 @@ export default function GamePage() {
     setActionSubmitting(true)
     setActionMessage(null)
     const solverName = getTelegramWebApp().initDataUnsafe?.user?.first_name ?? undefined
+    console.log('[Game] שולח תשובה לשרת item_id=', selectedItem.id, '– אחרי אישור השרת ישלח לכל חברי הקבוצה')
     sendGameAction(gameId, {
       item_id: selectedItem.id,
       answer: unlockAnswer.trim(),
