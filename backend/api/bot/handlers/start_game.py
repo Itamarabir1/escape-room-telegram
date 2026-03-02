@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 from services.game_session import (
@@ -115,16 +116,32 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.answer("\n".join(lines), show_alert=True)
 
     elif query.data == "lobby_start":
+        answered = False
+
+        async def _answer_once(*, text: str | None = None, show_alert: bool = False) -> None:
+            nonlocal answered
+            if answered:
+                return
+            if text is None:
+                await query.answer()
+            else:
+                await query.answer(text, show_alert=show_alert)
+            answered = True
+
         if user.id != chat_data.get("lobby_host_id"):
-            await query.answer("רק מי שפתח את המשחק יכול להתחיל 🔒", show_alert=True)
+            await _answer_once(text="רק מי שפתח את המשחק יכול להתחיל 🔒", show_alert=True)
             return
         players = chat_data.get("players") or {}
         if len(players) == 0:
-            await query.answer("אין שחקנים רשומים עדיין!", show_alert=True)
+            await _answer_once(text="אין שחקנים רשומים עדיין!", show_alert=True)
             return
         chat_data["started_by_user_id"] = user.id
         chat = update.effective_chat
-        chat_id = chat.id if chat else 0
+        chat_id = chat.id if chat else None
+        if chat_id is None:
+            logger.warning("lobby_start missing chat_id")
+            await _answer_once(text="אירעה שגיאה. נסו שוב.", show_alert=True)
+            return
         game_id = finish_registration(chat_id, chat_data)
         game = get_game_by_id(game_id)
         if game:
@@ -132,15 +149,31 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             save_game(game_id, game)
         game_url = game_page_url(game_id)
         if "lobby_msg_id" not in chat_data:
-            await query.answer()
+            await _answer_once()
             return
-        await query.edit_message_text(
-            "✅ המשחק התחיל!\nבהצלחה לכולם 🚀",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
-            ]),
-        )
-        await query.answer()
+        try:
+            await query.edit_message_text(
+                "✅ המשחק התחיל!\nבהצלחה לכולם 🚀",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+                ]),
+            )
+        except BadRequest as e:
+            logger.warning(
+                "lobby_start edit failed chat_id=%s game_id=%s err=%s",
+                chat_id,
+                game_id,
+                e,
+            )
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="✅ המשחק התחיל!\nבהצלחה לכולם 🚀",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+                ]),
+            )
+        finally:
+            await _answer_once()
 
 
 def register_start_game_handler(application) -> None:
