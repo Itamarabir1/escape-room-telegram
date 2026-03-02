@@ -48,11 +48,16 @@ def _validate_and_load_game(game_id: str, init_data: str) -> tuple[dict, int | N
 
 
 def get_game_for_request(game_id: str, request: Request) -> dict:
-    """Load game; validate Telegram initData when present; perform late join if needed. Raises HTTPException on 401/404."""
+    """Load game for REST API, require valid Telegram initData, and allow late-join registration."""
     init_data = request.headers.get("X-Telegram-Init-Data") or ""
+    if not (init_data or "").strip():
+        logger.info(
+            "REST auth rejected game_id=%s reason=missing_init_data",
+            game_id,
+        )
+        raise HTTPException(status_code=401, detail=INIT_DATA_REQUIRED_DETAIL)
     game, user_id, validated = _validate_and_load_game(game_id, init_data)
-    if user_id is None:
-        return game
+    assert user_id is not None
     players = game.get("players") or {}
     if not _is_player_registered(players, int(user_id)):
         name = get_user_first_name_from_validated(validated)
@@ -71,12 +76,24 @@ def get_game_and_user_for_ws(game_id: str, init_data: str) -> tuple[dict, int]:
     """
     if not (init_data or "").strip():
         raise HTTPException(status_code=401, detail=INIT_DATA_REQUIRED_DETAIL)
-    game, user_id, _ = _validate_and_load_game(game_id, init_data)
+    game, user_id, validated = _validate_and_load_game(game_id, init_data)
     assert user_id is not None  # _validate_and_load_game raises if init_data present and invalid
     players = game.get("players") or {}
     if not _is_player_registered(players, int(user_id)):
         logger.info(
-            "WS players-only reject game_id=%s user_id=%s players_count=%s",
+            "SSE late-join game_id=%s user_id=%s players_count_before=%s",
+            game_id,
+            user_id,
+            len(players),
+        )
+        name = get_user_first_name_from_validated(validated)
+        players[str(user_id)] = name
+        game["players"] = players
+        save_game(game_id, game)
+        players = game.get("players") or {}
+    if not _is_player_registered(players, int(user_id)):
+        logger.info(
+            "SSE players-only reject game_id=%s user_id=%s players_count=%s",
             game_id,
             user_id,
             len(players),

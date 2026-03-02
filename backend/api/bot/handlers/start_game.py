@@ -49,6 +49,27 @@ async def start_game_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     chat_data = context.chat_data
+    existing_game_id = chat_data.get("game_id")
+    if is_game_active(chat_data) and existing_game_id:
+        game_url = game_page_url(existing_game_id)
+        text = "יש כבר משחק פעיל בקבוצה. אפשר להיכנס למשחק הקיים:"
+        try:
+            await update.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+                ]),
+            )
+        except BadRequest as e:
+            logger.debug("start_game existing_game web_app failed: %s", e)
+            await update.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🎮 כנס למשחק", url=game_url)],
+                ]),
+            )
+        return
+
     start_registration(chat_data)
     chat_data["lobby_host_id"] = update.effective_user.id
 

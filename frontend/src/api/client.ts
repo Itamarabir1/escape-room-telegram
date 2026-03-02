@@ -97,6 +97,10 @@ export interface GameStateResponse {
   started_at?: string
   /** True when door animation was already triggered; used to resume in second room. */
   door_opened?: boolean
+  /** True when server marked game over. */
+  game_over?: boolean
+  /** Server reason for game_over. */
+  game_over_reason?: 'timeout' | 'solved' | string
 }
 
 /** Room canvas size – larger than screen so user scrolls left/right (panorama) */

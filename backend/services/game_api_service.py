@@ -55,6 +55,10 @@ def build_game_state_response(game_id: str, game: dict[str, Any]) -> GameStateRe
     }
     if game.get("started_at"):
         out["started_at"] = game["started_at"]
+    if game.get("game_over") is not None:
+        out["game_over"] = bool(game.get("game_over"))
+    if game.get("game_over_reason"):
+        out["game_over_reason"] = str(game.get("game_over_reason"))
     if game.get("door_opened"):
         out["door_opened"] = bool(game.get("door_opened"))
     if game.get("room_image_url") or game.get("room_items"):

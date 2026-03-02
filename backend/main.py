@@ -17,6 +17,7 @@ from api.routes.health_routes import router as health_router
 from api.routes.media_routes import router as media_router
 from api.bot.app import create_telegram_app, run_telegram
 from services.game_lifecycle_service import check_expired_games_loop
+from services.sse_registry import sse_pubsub_listener_loop
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ async def startup_event():
     tg_app = create_telegram_app()
     app.state.tg_app = tg_app
     asyncio.create_task(check_expired_games_loop())
+    asyncio.create_task(sse_pubsub_listener_loop())
     await run_telegram(tg_app)
 
 

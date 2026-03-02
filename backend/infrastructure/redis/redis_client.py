@@ -105,6 +105,66 @@ def redis_available() -> bool:
     return _get_redis() is not None
 
 
+def redis_publish(channel: str, payload: str) -> bool:
+    """Publish raw string payload to a Redis pub/sub channel."""
+    r = _get_redis()
+    if not r:
+        return False
+    try:
+        r.publish(channel, payload)
+        return True
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as e:
+        logger.warning("Redis connection lost (publish): %s", e)
+        _clear_redis_on_error()
+        return False
+    except Exception as e:
+        logger.warning("redis_publish error channel=%s: %s", channel, e)
+        return False
+
+
+def redis_create_pubsub(channel: str):
+    """Create pubsub subscriber for a single channel."""
+    r = _get_redis()
+    if not r:
+        return None
+    try:
+        pubsub = r.pubsub(ignore_subscribe_messages=True)
+        pubsub.subscribe(channel)
+        return pubsub
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as e:
+        logger.warning("Redis connection lost (create_pubsub): %s", e)
+        _clear_redis_on_error()
+        return None
+    except Exception as e:
+        logger.warning("redis_create_pubsub error channel=%s: %s", channel, e)
+        return None
+
+
+def redis_pubsub_get_message(pubsub, timeout: float = 1.0):
+    """Read one message from a pubsub handle."""
+    if pubsub is None:
+        return None
+    try:
+        return pubsub.get_message(timeout=timeout)
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as e:
+        logger.warning("Redis connection lost (pubsub_get_message): %s", e)
+        _clear_redis_on_error()
+        return None
+    except Exception as e:
+        logger.warning("redis_pubsub_get_message error: %s", e)
+        return None
+
+
+def redis_close_pubsub(pubsub) -> None:
+    """Close pubsub handle safely."""
+    if pubsub is None:
+        return
+    try:
+        pubsub.close()
+    except Exception:
+        return
+
+
 # Leaderboard: sorted set "leaderboard", score = seconds to complete (lower = better).
 # Writing to this key (e.g. on game end) can be added later.
 _LEADERBOARD_KEY = "leaderboard"

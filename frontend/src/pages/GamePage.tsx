@@ -76,7 +76,7 @@ export default function GamePage() {
   const [gameId, setGameId] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('')
   const [statusError, setStatusError] = useState(false)
-  const [roomLoading, setRoomLoading] = useState(false)
+  const [roomLoading, setRoomLoading] = useState(true)
   const [room, setRoom] = useState<GameStateResponse | null>(null)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<RoomItemResponse | null>(null)
@@ -104,6 +104,7 @@ export default function GamePage() {
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeUpSentRef = useRef(false)
   const pollCleanupRef = useRef<(() => void) | null>(null)
+  const sseRecoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
   const doorVideoRef = useRef<HTMLVideoElement | null>(null)
   const closeModalRef = useRef<() => void>(() => {})
@@ -338,8 +339,32 @@ export default function GamePage() {
     return () => clearInterval(pollInterval)
   }, [gameId, startTimerFromServerTime])
 
+  const syncGameStateFromServer = useCallback(async () => {
+    if (!gameId) return
+    const data = await getGameState(gameId)
+    setRoom(data)
+    setSolvedItemIds(data.solved_item_ids ?? [])
+    if (data.door_opened) {
+      setDoorVideoPlaying(false)
+      setScienceLabImageLoaded(false)
+      setShowScienceLabRoom(true)
+    }
+    if (data.started_at) {
+      setGameStarted(true)
+      startTimerFromServerTime(data.started_at)
+    }
+    if (data.game_over) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
+      }
+      setGameOver(true)
+    }
+  }, [gameId, startTimerFromServerTime])
+
   useEffect(() => {
     if (!gameId) {
+      setRoomLoading(false)
       showStatus(MESSAGES.START_IN_GROUP, false)
       return
     }
@@ -403,13 +428,26 @@ export default function GamePage() {
 
   const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (!gameId || !room) return
+    if (!gameId) return
     const url = getGameSSEUrl(gameId)
     console.log('[SSE] connecting gameId=', gameId, 'url=', url)
     const es = new EventSource(url)
+    const stopRecoveryPolling = () => {
+      if (!sseRecoveryPollRef.current) return
+      clearInterval(sseRecoveryPollRef.current)
+      sseRecoveryPollRef.current = null
+    }
+    const startRecoveryPolling = () => {
+      if (sseRecoveryPollRef.current) return
+      sseRecoveryPollRef.current = setInterval(() => {
+        syncGameStateFromServer().catch(() => {})
+      }, 3000)
+    }
 
     es.onopen = () => {
       console.log('[SSE] open gameId=', gameId)
+      stopRecoveryPolling()
+      syncGameStateFromServer().catch(() => {})
     }
 
     es.onmessage = (ev) => {
@@ -466,16 +504,18 @@ export default function GamePage() {
 
     es.onerror = (ev) => {
       console.log('[SSE] error gameId=', gameId, ev)
+      startRecoveryPolling()
     }
 
     return () => {
+      stopRecoveryPolling()
       es.close()
       if (puzzleSolvedTimeoutRef.current) {
         clearTimeout(puzzleSolvedTimeoutRef.current)
         puzzleSolvedTimeoutRef.current = null
       }
     }
-  }, [gameId, room, startTimerFromServerTime])
+  }, [gameId, startTimerFromServerTime, syncGameStateFromServer])
 
   const onRoomImageLoad = useCallback(() => {
     setRoomImageLoaded(true)
@@ -613,7 +653,7 @@ export default function GamePage() {
   const selectedPuzzle = selectedItem ? getPuzzleByItemId(room, selectedItem.id) : null
   const hasImage = Boolean(room?.room_image_url)
   const roomReady = !roomLoading && (hasImage ? roomImageLoaded : true)
-  const showLoadingOverlay = showRoomSection || roomLoading
+  const showLoadingOverlay = roomLoading || (gameStarted && !roomReady)
 
   const handleHotspotClick = useCallback(
     (params: {
@@ -687,7 +727,7 @@ export default function GamePage() {
         status={status}
         statusError={statusError}
       />
-      {room && !roomLoading && !gameStarted && (
+      {room && !roomLoading && !gameStarted && !showLoadingOverlay && (
         <div className="waiting-screen">
           <p>⏳ ממתין שהמשחק יתחיל...</p>
         </div>

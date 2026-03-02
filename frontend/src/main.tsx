@@ -8,3 +8,11 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>
 )
+
+const bootLoadingEl = document.getElementById('boot-loading')
+if (bootLoadingEl) {
+  requestAnimationFrame(() => {
+    bootLoadingEl.classList.add('boot-loading--hidden')
+    setTimeout(() => bootLoadingEl.remove(), 240)
+  })
+}

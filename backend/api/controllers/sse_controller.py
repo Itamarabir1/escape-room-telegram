@@ -28,14 +28,21 @@ async def sse_games_handler(request: Request, game_id: str) -> StreamingResponse
     init_data = get_init_data_from_request(request)
     logger.info("SSE init_data present=%s game_id=%s", bool(init_data), game_id)
     try:
-        _, user_id = get_game_and_user_for_ws(game_id, init_data)
-        logger.debug("SSE auth ok for game_id=%s user_id=%s", game_id, user_id)
+        game, user_id = get_game_and_user_for_ws(game_id, init_data)
+        players = game.get("players") or {}
+        logger.info(
+            "SSE auth ok game_id=%s user_id=%s players_count=%s",
+            game_id,
+            user_id,
+            len(players),
+        )
     except HTTPException as exc:
         logger.info(
-            "SSE auth rejected game_id=%s status=%s init_data_present=%s",
+            "SSE auth rejected game_id=%s status=%s init_data_present=%s detail=%s",
             game_id,
             exc.status_code,
             bool(init_data),
+            getattr(exc, "detail", ""),
         )
         raise
 
