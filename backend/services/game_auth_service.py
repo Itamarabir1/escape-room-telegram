@@ -48,16 +48,11 @@ def _validate_and_load_game(game_id: str, init_data: str) -> tuple[dict, int | N
 
 
 def get_game_for_request(game_id: str, request: Request) -> dict:
-    """Load game for REST API, require valid Telegram initData, and allow late-join registration."""
+    """Load game for REST API and allow late-join when initData exists."""
     init_data = request.headers.get("X-Telegram-Init-Data") or ""
-    if not (init_data or "").strip():
-        logger.info(
-            "REST auth rejected game_id=%s reason=missing_init_data",
-            game_id,
-        )
-        raise HTTPException(status_code=401, detail=INIT_DATA_REQUIRED_DETAIL)
     game, user_id, validated = _validate_and_load_game(game_id, init_data)
-    assert user_id is not None
+    if user_id is None:
+        return game
     players = game.get("players") or {}
     if not _is_player_registered(players, int(user_id)):
         name = get_user_first_name_from_validated(validated)
