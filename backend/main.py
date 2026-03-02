@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
 
@@ -57,24 +57,33 @@ async def chrome_devtools_well_known():
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
+    if not hasattr(app.state, "tg_app"):
+        logger.error("Webhook called before telegram app initialization")
+        raise HTTPException(status_code=503, detail="Telegram app is not initialized")
     try:
         data = await request.json()
         update = Update.de_json(data=data, bot=app.state.tg_app.bot)
         await app.state.tg_app.update_queue.put(update)
     except Exception as e:
-        logger.exception("Webhook error: %s", e)
+        logger.exception("Webhook processing failed: %s", e)
+        raise HTTPException(status_code=500, detail="Webhook processing failed") from e
     return {"ok": True}
 
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("Startup: waiting for database")
     wait_for_db()
+    logger.info("Startup: database is ready")
     init_db()
+    logger.info("Startup: database init completed")
     tg_app = create_telegram_app()
     app.state.tg_app = tg_app
     asyncio.create_task(check_expired_games_loop())
     asyncio.create_task(sse_pubsub_listener_loop())
+    logger.info("Startup: starting telegram runtime")
     await run_telegram(tg_app)
+    logger.info("Startup: telegram runtime started")
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ uv sync
 
 ```powershell
 cd c:\Users\user\Desktop\telegram-bot\backend
-uv run uvicorn app.main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port 8000
+uv run uvicorn main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port 8000
 ```
 
 זהו. uv מטפל בתלויות ובסביבה – אתה רק מריץ את הפקודה.
@@ -45,7 +45,7 @@ uv run uvicorn app.main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --p
 |----------|--------|
 | הפעלת Redis | `docker compose up -d redis` (משורש הפרויקט) |
 | התקנה / עדכון תלויות | `uv sync` (מתוך `backend`) |
-| הרצת הבאקאנד | `uv run uvicorn app.main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port 8000` (מתוך `backend`) |
+| הרצת הבאקאנד | `uv run uvicorn main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port 8000` (מתוך `backend`) |
 
 מקור התלויות: `pyproject.toml`. משחקים ושחקנים נשמרים ב-Redis – חייבים להריץ Redis כדי שטלגרם וה-Web יראו את אותו מצב.
 
