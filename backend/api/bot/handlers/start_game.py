@@ -4,7 +4,6 @@ import logging
 from datetime import datetime, timezone
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 from services.game_session import (
@@ -53,21 +52,12 @@ async def start_game_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if is_game_active(chat_data) and existing_game_id:
         game_url = game_page_url(existing_game_id)
         text = "יש כבר משחק פעיל בקבוצה. אפשר להיכנס למשחק הקיים:"
-        try:
-            await update.message.reply_text(
-                text,
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
-                ]),
-            )
-        except BadRequest as e:
-            logger.debug("start_game existing_game web_app failed: %s", e)
-            await update.message.reply_text(
-                text,
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 כנס למשחק", url=game_url)],
-                ]),
-            )
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+            ]),
+        )
         return
 
     start_registration(chat_data)
@@ -144,24 +134,12 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if "lobby_msg_id" not in chat_data:
             await query.answer()
             return
-        try:
-            await query.edit_message_text(
-                "✅ המשחק התחיל!\nבהצלחה לכולם 🚀",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
-                ]),
-            )
-        except BadRequest as e:
-            err_msg = getattr(e, "message", None) or str(e)
-            if "button" in err_msg.lower():
-                await query.edit_message_text(
-                    "✅ המשחק התחיל!\nבהצלחה לכולם 🚀\n\nלחץ על הכפתור למטה:",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎮 כנס למשחק", url=game_url)],
-                    ]),
-                )
-            else:
-                raise
+        await query.edit_message_text(
+            "✅ המשחק התחיל!\nבהצלחה לכולם 🚀",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+            ]),
+        )
         await query.answer()
 
 

@@ -10,31 +10,6 @@ from infrastructure.database.session import get_session
 logger = logging.getLogger(__name__)
 
 
-def upsert_group(chat_id: int, group_name: str | None = None, started_at: datetime | None = None) -> None:
-    now = datetime.now(timezone.utc)
-    try:
-        with get_session() as session:
-            row = session.query(Group).filter(Group.group_id == chat_id).first()
-            if row:
-                if group_name is not None:
-                    row.group_name = group_name[:100] if group_name else None
-                if started_at is not None:
-                    row.started_at = started_at
-                logger.debug("Updated group chat_id=%s name=%s", chat_id, group_name)
-            else:
-                session.add(
-                    Group(
-                        group_id=chat_id,
-                        group_name=group_name[:100] if group_name else None,
-                        started_at=started_at or now,
-                        created_at=now,
-                    )
-                )
-                logger.info("Created group in DB: chat_id=%s name=%s", chat_id, group_name)
-    except Exception as e:
-        logger.warning("Failed to upsert group in DB: %s", e, exc_info=True)
-
-
 def set_finished_at(chat_id: int, finished_at: datetime | None = None) -> None:
     when = finished_at or datetime.now(timezone.utc)
     try:

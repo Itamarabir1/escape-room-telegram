@@ -101,10 +101,6 @@ def redis_delete_game(game_id: str) -> bool:
         return False
 
 
-def redis_available() -> bool:
-    return _get_redis() is not None
-
-
 def redis_publish(channel: str, payload: str) -> bool:
     """Publish raw string payload to a Redis pub/sub channel."""
     r = _get_redis()

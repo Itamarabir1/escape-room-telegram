@@ -65,7 +65,7 @@ async def submit_puzzle_action(
         game["room_solved"] = room_solved
         save_game(game_id, game)
         label = item_label(game, item_id)
-        logger.info("WS broadcasting puzzle_solved game_id=%s item_id=%s", game_id, item_id)
+        logger.info("SSE broadcasting puzzle_solved game_id=%s item_id=%s", game_id, item_id)
         await broadcast_puzzle_solved(
             game_id,
             item_id=item_id,

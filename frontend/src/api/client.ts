@@ -180,18 +180,6 @@ export async function reportTimeUp(gameId: string): Promise<{ ok: boolean; messa
 }
 
 /**
- * POST /api/games/{game_id}/start – record that the game has started (first "התחל" click). Returns server-set started_at; broadcasts to other clients.
- */
-export async function startGame(gameId: string): Promise<{ started_at: string }> {
-  const res = await fetch(gameUrl(gameId) + '/start', { method: 'POST', headers: gameHeaders() })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw { status: res.status, detail: body?.detail ?? res.statusText } as ApiError
-  }
-  return res.json()
-}
-
-/**
  * POST /api/games/{game_id}/door_opened – notify that door was clicked (all puzzles solved). Backend broadcasts door_opened so all clients play the animation together.
  */
 export async function notifyDoorOpened(gameId: string): Promise<{ ok: boolean }> {
@@ -231,24 +219,4 @@ export interface PuzzleSolvedEvent {
   item_label: string
   answer: string
   solver_name?: string
-}
-
-export interface GameOverEvent {
-  event: 'game_over'
-}
-
-export interface DoorOpenedEvent {
-  event: 'door_opened'
-}
-
-/** Server broadcast when game start is recorded (timer starts from started_at). */
-export interface GameStartedEvent {
-  type: 'game_started'
-  started_at: string
-}
-
-/** Server broadcast when game ends (timeout or solved). */
-export interface GameOverEventWithReason {
-  type: 'game_over'
-  reason: 'timeout' | 'solved'
 }

@@ -168,39 +168,32 @@ export default function GamePage() {
 
   const speakWithBrowserTTS = useCallback((text: string, onEnd?: () => void) => {
     if (!text.trim()) {
-      console.log('[audio] speakWithBrowserTTS: no text, calling onEnd')
       onEnd?.()
       return
     }
     if (!window.speechSynthesis) {
-      console.warn('[audio] speakWithBrowserTTS: speechSynthesis not available')
       onEnd?.()
       return
     }
-    console.log('[audio] speakWithBrowserTTS: starting, text length=', text.length)
     const u = new SpeechSynthesisUtterance(text)
     u.lang = 'he-IL'
     u.rate = 0.95
-    if (onEnd) u.onend = () => { console.log('[audio] speakWithBrowserTTS: ended'); onEnd() }
-    u.onerror = (e) => { console.warn('[audio] speakWithBrowserTTS: error', e); onEnd?.() }
+    if (onEnd) u.onend = () => { onEnd() }
+    u.onerror = () => { onEnd?.() }
     window.speechSynthesis.speak(u)
   }, [])
 
   const playLoreAudio = useCallback(
     (gid: string, loreTextForFallback?: string, onNarrationEnd?: () => void, audioContext?: AudioContext | null, audioElementForFallback?: HTMLAudioElement | null) => {
       if (lorePlayedRef.current) {
-        console.log('[audio] playLoreAudio: already played this session, skip')
         onNarrationEnd?.()
         return
       }
       lorePlayedRef.current = true
-      console.log('[audio] playLoreAudio: fetch lore/audio for', gid)
       const tryFallback = () => {
-        console.log('[audio] playLoreAudio: using browser TTS fallback, hasText=', !!loreTextForFallback?.trim())
         if (loreTextForFallback?.trim()) {
           speakWithBrowserTTS(loreTextForFallback, onNarrationEnd)
         } else {
-          console.log('[audio] playLoreAudio: no fallback text, calling onNarrationEnd')
           onNarrationEnd?.()
         }
         lorePlayedRef.current = false
@@ -209,12 +202,10 @@ export default function GamePage() {
         const objectUrl = URL.createObjectURL(blob)
         const cleanup = () => URL.revokeObjectURL(objectUrl)
         const onEnded = () => {
-          console.log('[audio] playLoreAudio: playback ended')
           cleanup()
           onNarrationEnd?.()
         }
-        const onPlayFailed = (err: unknown) => {
-          console.warn('[audio] playLoreAudio: play() failed:', err)
+        const onPlayFailed = (_err?: unknown) => {
           cleanup()
           tryFallback()
         }
@@ -227,21 +218,16 @@ export default function GamePage() {
         audioEl.addEventListener('ended', onEnded)
         audioEl.addEventListener('error', onError)
         audioEl.play()
-          .then(() => console.log('[audio] playLoreAudio: play() started'))
+          .then(() => undefined)
           .catch(onPlayFailed)
       }
       fetchLoreAudio(gid)
-        .then((r) => {
-          console.log('[audio] playLoreAudio: response status=', r.status, r.statusText)
-          return r.ok ? r.blob() : null
-        })
+        .then((r) => r.ok ? r.blob() : null)
         .then(async (blob) => {
           if (!blob) {
-            console.warn('[audio] playLoreAudio: no blob (backend error or 404/503), fallback')
             tryFallback()
             return
           }
-          console.log('[audio] playLoreAudio: got blob size=', blob.size)
           if (audioContext && audioContext.state !== 'closed') {
             try {
               const arrayBuffer = await blob.arrayBuffer()
@@ -250,14 +236,12 @@ export default function GamePage() {
               source.buffer = audioBuffer
               source.connect(audioContext.destination)
               source.onended = () => {
-                console.log('[audio] playLoreAudio: Web Audio playback ended')
                 onNarrationEnd?.()
               }
               source.start(0)
-              console.log('[audio] playLoreAudio: Web Audio play() started')
               return
-            } catch (e) {
-              console.warn('[audio] playLoreAudio: Web Audio failed, fallback to Audio element:', e)
+            } catch {
+              // fallback below
             }
           }
           if (audioElementForFallback) {
@@ -266,8 +250,7 @@ export default function GamePage() {
             tryFallback()
           }
         })
-        .catch((err) => {
-          console.warn('[audio] playLoreAudio: fetch failed (network/CORS):', err)
+        .catch(() => {
           tryFallback()
         })
     },
@@ -420,8 +403,6 @@ export default function GamePage() {
     return () => document.body.classList.remove('game-has-room')
   }, [roomLoading, hasRoomImage])
 
-  const showTimer = timerVisible
-
   useEffect(() => {
     timeUpSentRef.current = false
   }, [gameId])
@@ -430,7 +411,6 @@ export default function GamePage() {
   useEffect(() => {
     if (!gameId) return
     const url = getGameSSEUrl(gameId)
-    console.log('[SSE] connecting gameId=', gameId, 'url=', url)
     const es = new EventSource(url)
     const stopRecoveryPolling = () => {
       if (!sseRecoveryPollRef.current) return
@@ -445,13 +425,11 @@ export default function GamePage() {
     }
 
     es.onopen = () => {
-      console.log('[SSE] open gameId=', gameId)
       stopRecoveryPolling()
       syncGameStateFromServer().catch(() => {})
     }
 
     es.onmessage = (ev) => {
-      console.log('[SSE] message gameId=', gameId, 'data=', ev.data)
       try {
         const data = JSON.parse(ev.data) as {
           event?: string
@@ -493,7 +471,6 @@ export default function GamePage() {
               : payload.item_id === 'safe_1'
                 ? 'הכספת נפתחה בהצלחה בתוכה יש מפתח'
                 : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
-        console.log('[SSE] חידה נפתרה – מציג באנר לכל הקבוצה:', text, 'solver=', payload.solver_name)
         if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
         setPuzzleSolvedNotification(text)
         puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
@@ -503,7 +480,7 @@ export default function GamePage() {
     }
 
     es.onerror = (ev) => {
-      console.log('[SSE] error gameId=', gameId, ev)
+      void ev
       startRecoveryPolling()
     }
 
@@ -620,7 +597,6 @@ export default function GamePage() {
     setActionSubmitting(true)
     setActionMessage(null)
     const solverName = getTelegramWebApp().initDataUnsafe?.user?.first_name ?? undefined
-    console.log('[Game] שולח תשובה לשרת item_id=', selectedItem.id, '– אחרי אישור השרת ישלח לכל חברי הקבוצה')
     sendGameAction(gameId, {
       item_id: selectedItem.id,
       answer: unlockAnswer.trim(),
@@ -718,7 +694,7 @@ export default function GamePage() {
         </div>
       )}
       <Banners
-        showTimer={showTimer}
+        showTimer={timerVisible}
         gameOver={gameOver}
         secondsLeft={secondsLeft}
         puzzleSolvedNotification={puzzleSolvedNotification}

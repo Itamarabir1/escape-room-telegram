@@ -42,20 +42,6 @@ def is_game_active(chat_data: dict[str, Any]) -> bool:
     return bool(chat_data.get("game_active"))
 
 
-def get_players(chat_data: dict[str, Any]) -> dict[int, str]:
-    return chat_data.get("players") or {}
-
-
-def get_players_list_text(chat_data: dict[str, Any]) -> str:
-    players = get_players(chat_data)
-    return "\n".join([f"- {name}" for name in players.values()]) if players else ""
-
-
-def can_start_game(chat_data: dict[str, Any]) -> bool:
-    """True if registration is open (game not started yet). Allows solo play (0 players)."""
-    return not is_game_active(chat_data)
-
-
 def finish_registration(chat_id: int, chat_data: dict[str, Any]) -> str:
     """
     Lock registration, set game_active, create game_id, store in Redis (or in-memory).

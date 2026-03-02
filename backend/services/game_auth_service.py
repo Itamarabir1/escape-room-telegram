@@ -1,8 +1,8 @@
 # pyright: reportMissingImports=false
-"""Game auth for Web API and WebSocket.
+"""Game auth for Web API and SSE.
 
 HTTP: resolve game and player from request headers (initData, late join).
-WS: validate initData and require existing player in game["players"].
+SSE: validate initData and require existing player in game["players"].
 Raises HTTPException on failure."""
 import logging
 from typing import Any
@@ -64,7 +64,7 @@ def get_game_for_request(game_id: str, request: Request) -> dict:
 
 
 def get_game_and_user_for_ws(game_id: str, init_data: str) -> tuple[dict, int]:
-    """Resolve game and user_id for WebSocket connection.
+    """Resolve game and user_id for realtime connection.
 
     Requires valid initData and that the user is already in game["players"].
     Raises HTTPException with status_code 401/403/404 on failure.

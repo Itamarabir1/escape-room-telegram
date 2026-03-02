@@ -3,7 +3,6 @@
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from services.game_session import is_game_active, end_game_chat
@@ -22,38 +21,8 @@ def _game_keyboard(game_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def _game_keyboard_url_fallback(game_id: str) -> InlineKeyboardMarkup:
-    url = game_page_url(game_id)
-    keyboard = [
-        [InlineKeyboardButton("🎮 כניסה למשחק", url=url)],
-        [InlineKeyboardButton("🏆 עשרת הגדולים ביותר", callback_data="top10")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
 async def send_game_button_or_link(message, game_id: str, intro: str) -> None:
-    try:
-        await message.reply_text(intro, reply_markup=_game_keyboard(game_id))
-    except BadRequest as e:
-        err_msg = getattr(e, "message", None) or str(e)
-        if "button" in err_msg.lower():
-            await message.reply_text(
-                intro + "\n\n(לחץ על הכפתור למטה כדי להיכנס.)",
-                reply_markup=_game_keyboard_url_fallback(game_id),
-            )
-        else:
-            raise
-
-
-async def send_fallback_game_link(query, chat_data: dict) -> None:
-    game_id = chat_data.get("game_id")
-    if not game_id:
-        await query.message.reply_text("אירעה שגיאה בהתחלת המשחק. נסה /end_game ואז /start_game.")
-        return
-    await query.message.reply_text(
-        "המשחק מוכן. לחץ על הכפתור למטה כדי להיכנס:",
-        reply_markup=_game_keyboard_url_fallback(game_id),
-    )
+    await message.reply_text(intro, reply_markup=_game_keyboard(game_id))
 
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -109,13 +78,6 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
-async def handle_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_data = context.chat_data
-    if chat_data.get("awaiting_group_name") is None:
-        return
-    del chat_data["awaiting_group_name"]
-
-
 async def end_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_data = context.chat_data
     if not is_game_active(chat_data):
@@ -140,4 +102,3 @@ def register_game_handlers(application) -> None:
     application.add_handler(CommandHandler("end_game", end_game))
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_any_message))
