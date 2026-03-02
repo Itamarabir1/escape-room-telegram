@@ -2,7 +2,7 @@
 """Group game: /end_game, welcome, top10. Lobby/start flow is in start_game.py."""
 import logging
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from services.game_session import is_game_active, end_game_chat
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def _game_keyboard(game_id: str) -> InlineKeyboardMarkup:
     url = game_page_url(game_id)
     keyboard = [
-        [InlineKeyboardButton("🎮 שחק עכשיו!", web_app=WebAppInfo(url=url))],
+        [InlineKeyboardButton("🎮 כנס למשחק", url=url)],
         [InlineKeyboardButton("🏆 עשרת הגדולים ביותר", callback_data="top10")],
     ]
     return InlineKeyboardMarkup(keyboard)

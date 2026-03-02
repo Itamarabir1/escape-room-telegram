@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
@@ -56,7 +56,7 @@ async def start_game_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(
             text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+                [InlineKeyboardButton("🎮 כנס למשחק", url=game_url)],
             ]),
         )
         return
@@ -77,7 +77,7 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if query.data == "lobby_join":
         if is_game_active(chat_data):
-            await query.answer("המשחק כבר התחיל.", show_alert=False)
+            await query.answer("אתה כבר במשחק 😄", show_alert=True)
             return
         added = add_player(chat_data, user.id, user.first_name or "שחקן")
         if not added:
@@ -155,7 +155,7 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await query.edit_message_text(
                 "✅ המשחק התחיל!\nבהצלחה לכולם 🚀",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+                    [InlineKeyboardButton("🎮 כנס למשחק", url=game_url)],
                 ]),
             )
         except BadRequest as e:
@@ -169,7 +169,7 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 chat_id=chat_id,
                 text="✅ המשחק התחיל!\nבהצלחה לכולם 🚀",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 כנס למשחק", web_app=WebAppInfo(url=game_url))],
+                    [InlineKeyboardButton("🎮 כנס למשחק", url=game_url)],
                 ]),
             )
         finally:
