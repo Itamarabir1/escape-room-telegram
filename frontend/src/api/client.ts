@@ -129,7 +129,7 @@ export async function getGameState(gameId: string): Promise<GameStateResponse> {
   throw { status: res.status, detail } as ApiError
 }
 
-export interface ActionResponse {
+interface ActionResponse {
   ok: boolean
   game_id: string
   correct?: boolean
@@ -158,7 +158,7 @@ export async function sendGameAction(
 /**
  * GET /api/games/{game_id}/lore/audio – returns blob for Audio. Requires initData header (registered players only).
  */
-export function getLoreAudioUrl(gameId: string): string {
+function getLoreAudioUrl(gameId: string): string {
   return gameUrl(gameId) + '/lore/audio'
 }
 

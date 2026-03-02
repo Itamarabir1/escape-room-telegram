@@ -6,7 +6,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppI
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from services.game_session import is_game_active, end_game_chat
-from repositories.group_repository import get_top10_groups, set_finished_at
+from repositories.group_repository import set_finished_at
+from infrastructure.redis.redis_client import redis_get_leaderboard_top10
 from utils.urls import game_page_url
 
 logger = logging.getLogger(__name__)
@@ -27,19 +28,18 @@ async def send_game_button_or_link(message, game_id: str, intro: str) -> None:
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    chat_data = context.chat_data
     logger.debug("callback data=%s chat_id=%s", query.data, update.effective_chat.id if update.effective_chat else None)
 
     if query.data == "top10":
-        top = get_top10_groups()
+        top = redis_get_leaderboard_top10()
         if not top:
             await query.answer("עדיין אין תוצאות. היו הראשונים לסיים! 🏆", show_alert=True)
             return
         medals = ("🥇", "🥈", "🥉") + ("4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟")
         lines = ["🏆 *עשרת הגדולים ביותר* 🏆\n"]
-        for i, row in enumerate(top, 1):
-            name = (row["group_name"] or "קבוצה").replace("*", "•").replace("_", "\\_")
-            sec = row.get("duration_seconds") or 0
+        for i, (member, score) in enumerate(top, 1):
+            name = (member if member.isdigit() is False else f"קבוצה {member}").replace("*", "•").replace("_", "\\_")
+            sec = int(score)
             m, s = divmod(sec, 60)
             time_str = f"{m} דק׳ {s} שניות" if m else f"{s} שניות"
             icon = medals[i - 1] if i <= len(medals) else f"{i}."

@@ -8,7 +8,7 @@ from urllib.parse import parse_qs
 from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from services.game_auth_service import get_game_and_user_for_ws
+from services.game_auth_service import get_game_and_user_for_realtime
 from services.sse_registry import register, unregister
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ async def sse_games_handler(request: Request, game_id: str) -> StreamingResponse
     init_data = get_init_data_from_request(request)
     logger.info("SSE init_data present=%s game_id=%s", bool(init_data), game_id)
     try:
-        game, user_id = get_game_and_user_for_ws(game_id, init_data)
+        game, user_id = get_game_and_user_for_realtime(game_id, init_data)
         players = game.get("players") or {}
         logger.info(
             "SSE auth ok game_id=%s user_id=%s players_count=%s",

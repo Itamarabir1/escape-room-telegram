@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 GAME_NOT_FOUND_DETAIL = "משחק לא נמצא או שהסתיים."
 INIT_DATA_REQUIRED_DETAIL = "פתחו את המשחק בלחיצה על הכפתור שמופיע בהודעה בקבוצה (כניסה למשחק או שחק עכשיו)."
-WS_PLAYERS_ONLY_DETAIL = "רק שחקנים רשומים יכולים לקבל עדכונים בזמן אמת."
+REALTIME_PLAYERS_ONLY_DETAIL = "רק שחקנים רשומים יכולים לקבל עדכונים בזמן אמת."
 
 
 def _is_player_registered(players: dict[Any, Any], user_id: int) -> bool:
@@ -63,7 +63,7 @@ def get_game_for_request(game_id: str, request: Request) -> dict:
     return game
 
 
-def get_game_and_user_for_ws(game_id: str, init_data: str) -> tuple[dict, int]:
+def get_game_and_user_for_realtime(game_id: str, init_data: str) -> tuple[dict, int]:
     """Resolve game and user_id for realtime connection.
 
     Requires valid initData and that the user is already in game["players"].
@@ -93,5 +93,10 @@ def get_game_and_user_for_ws(game_id: str, init_data: str) -> tuple[dict, int]:
             user_id,
             len(players),
         )
-        raise HTTPException(status_code=403, detail=WS_PLAYERS_ONLY_DETAIL)
+        raise HTTPException(status_code=403, detail=REALTIME_PLAYERS_ONLY_DETAIL)
     return game, int(user_id)
+
+
+def get_game_and_user_for_ws(game_id: str, init_data: str) -> tuple[dict, int]:
+    """Backward-compatible alias; prefer get_game_and_user_for_realtime."""
+    return get_game_and_user_for_realtime(game_id, init_data)
