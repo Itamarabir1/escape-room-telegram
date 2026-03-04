@@ -33,9 +33,9 @@ def validate_init_data(init_data: str, bot_token: str) -> dict | None:
     received_hash = vals.pop("hash")
     # Build data-check-string: sorted key=value, newline-separated
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(vals.items()))
-    # secret_key = HMAC-SHA256(key=bot_token, message=b"WebAppData")
+    # secret_key = HMAC-SHA256(key=b"WebAppData", message=bot_token)
     secret_key = hmac.new(
-        bot_token.encode(), b"WebAppData", hashlib.sha256
+        b"WebAppData", bot_token.encode(), hashlib.sha256
     ).digest()
     computed_hash = hmac.new(
         secret_key, data_check_string.encode(), hashlib.sha256
