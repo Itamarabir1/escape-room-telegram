@@ -8,13 +8,13 @@ from telegram.ext import ContextTypes, CommandHandler, MessageHandler, CallbackQ
 from services.game_session import is_game_active, end_game_chat
 from repositories.group_repository import set_finished_at
 from infrastructure.redis.redis_client import redis_get_leaderboard_top10
-from utils.urls import game_page_url
+from utils.urls import game_entry_url
 
 logger = logging.getLogger(__name__)
 
 
 def _game_keyboard(game_id: str) -> InlineKeyboardMarkup:
-    url = game_page_url(game_id)
+    url = game_entry_url(game_id)
     keyboard = [
         [InlineKeyboardButton("🎮 כנס למשחק", url=url)],
         [InlineKeyboardButton("🏆 עשרת הגדולים ביותר", callback_data="top10")],

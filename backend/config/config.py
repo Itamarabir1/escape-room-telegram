@@ -19,6 +19,8 @@ else:
 class Config:
     # --- Core ---
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+    TELEGRAM_BOT_USERNAME = (os.getenv("TELEGRAM_BOT_USERNAME") or "").strip().lstrip("@")
+    TELEGRAM_MINI_APP_SHORT_NAME = (os.getenv("TELEGRAM_MINI_APP_SHORT_NAME") or "").strip().strip("/")
     WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
     FRONTEND_ORIGIN_FALLBACK = (os.getenv("FRONTEND_ORIGIN_FALLBACK") or "https://escape-room-telegram.onrender.com").strip().rstrip("/")
     VITE_API_URL = (os.getenv("VITE_API_URL") or "").strip().rstrip("/")
@@ -72,5 +74,10 @@ class Config:
 Config.DATABASE_URL = Config._ensure_db_ssl(Config._raw_db_url)
 if not Config.TELEGRAM_TOKEN:
     logger.warning("TELEGRAM_TOKEN is missing")
+if not Config.TELEGRAM_BOT_USERNAME or not Config.TELEGRAM_MINI_APP_SHORT_NAME:
+    logger.warning(
+        "Mini App deep-link config missing: set TELEGRAM_BOT_USERNAME and TELEGRAM_MINI_APP_SHORT_NAME. "
+        "Fallback URL /game?game_id=... will be used."
+    )
 
 config = Config()

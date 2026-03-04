@@ -48,6 +48,30 @@ function getTelegramWebApp() {
   return window.Telegram?.WebApp ?? {}
 }
 
+const LORE_ACK_STORAGE_PREFIX = 'lore_ack'
+
+function getLoreAckStorageKey(gameId: string, startedAt: string): string {
+  return `${LORE_ACK_STORAGE_PREFIX}:${gameId}:${startedAt}`
+}
+
+function hasLoreAck(gameId: string, startedAt: string): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(getLoreAckStorageKey(gameId, startedAt)) === '1'
+  } catch {
+    return false
+  }
+}
+
+function persistLoreAck(gameId: string, startedAt: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(getLoreAckStorageKey(gameId, startedAt), '1')
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function useCenterScrollOnLoad(
   ref: RefObject<HTMLDivElement | null>,
   active: boolean,
@@ -87,6 +111,7 @@ export default function GamePage() {
   const [secondsLeft, setSecondsLeft] = useState(INITIAL_TIMER_SECONDS)
   const [gameOver, setGameOver] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
+  const [startedAtIso, setStartedAtIso] = useState<string | null>(null)
   const [timerVisible, setTimerVisible] = useState(false)
   const [loreNarrationActive, setLoreNarrationActive] = useState(false)
   const [showNarrationButton, setShowNarrationButton] = useState(false)
@@ -165,6 +190,26 @@ export default function GamePage() {
     },
     [handleTimeUp]
   )
+
+  const applyStartedState = useCallback((startedAt: string) => {
+    setGameStarted(true)
+    setStartedAtIso(startedAt)
+    startTimerFromServerTime(startedAt)
+    if (!gameId) {
+      setLoreNarrationActive(true)
+      setShowNarrationButton(true)
+      return
+    }
+    if (hasLoreAck(gameId, startedAt)) {
+      setLoreNarrationActive(false)
+      setShowNarrationButton(false)
+      setTimerVisible(true)
+      return
+    }
+    setLoreNarrationActive(true)
+    setShowNarrationButton(true)
+    setTimerVisible(false)
+  }, [gameId, startTimerFromServerTime])
 
   const speakWithBrowserTTS = useCallback((text: string, onEnd?: () => void) => {
     if (!text.trim()) {
@@ -268,6 +313,7 @@ export default function GamePage() {
     const situationText = room?.room_lore || room?.room_description || ''
 
     const onNarrationEnd = () => {
+      if (gameId && startedAtIso) persistLoreAck(gameId, startedAtIso)
       setLoreNarrationActive(false)
       setTimerVisible(true)
     }
@@ -294,7 +340,7 @@ export default function GamePage() {
     } else {
       playLoreAudio(gameId, situationText, onNarrationEnd, null, unlockedAudioEl)
     }
-  }, [gameId, room?.room_lore, room?.room_description, playLoreAudio])
+  }, [gameId, startedAtIso, room?.room_lore, room?.room_description, playLoreAudio])
 
   const waitForStart = useCallback(() => {
     const pollInterval = setInterval(async () => {
@@ -303,7 +349,6 @@ export default function GamePage() {
         const data = await getGameState(gameId)
         if (data.started_at) {
           clearInterval(pollInterval)
-          setGameStarted(true)
           setRoom(data)
           setSolvedItemIds(data.solved_item_ids ?? [])
           if (data.door_opened) {
@@ -311,16 +356,14 @@ export default function GamePage() {
             setScienceLabImageLoaded(false)
             setShowScienceLabRoom(true)
           }
-          startTimerFromServerTime(data.started_at)
-          setLoreNarrationActive(true)
-          setShowNarrationButton(true)
+          applyStartedState(data.started_at)
         }
       } catch {
         // ignore
       }
     }, 3000)
     return () => clearInterval(pollInterval)
-  }, [gameId, startTimerFromServerTime])
+  }, [gameId, applyStartedState])
 
   const syncGameStateFromServer = useCallback(async () => {
     if (!gameId) return
@@ -333,8 +376,7 @@ export default function GamePage() {
       setShowScienceLabRoom(true)
     }
     if (data.started_at) {
-      setGameStarted(true)
-      startTimerFromServerTime(data.started_at)
+      applyStartedState(data.started_at)
     }
     if (data.game_over) {
       if (timerIntervalRef.current) {
@@ -343,7 +385,7 @@ export default function GamePage() {
       }
       setGameOver(true)
     }
-  }, [gameId, startTimerFromServerTime])
+  }, [gameId, applyStartedState])
 
   useEffect(() => {
     if (!gameId) {
@@ -361,6 +403,7 @@ export default function GamePage() {
     setRoomImageLoaded(false)
     setSolvedItemIds([])
     setGameStarted(false)
+    setStartedAtIso(null)
     setTimerVisible(false)
     setLoreNarrationActive(false)
     setShowNarrationButton(false)
@@ -377,10 +420,7 @@ export default function GamePage() {
           setShowScienceLabRoom(true)
         }
         if (data.started_at) {
-          setGameStarted(true)
-          startTimerFromServerTime(data.started_at)
-          setLoreNarrationActive(true)
-          setShowNarrationButton(true)
+          applyStartedState(data.started_at)
         } else {
           pollCleanupRef.current = waitForStart()
         }
@@ -395,7 +435,7 @@ export default function GamePage() {
       pollCleanupRef.current?.()
       pollCleanupRef.current = null
     }
-  }, [gameId, showStatus, startTimerFromServerTime, waitForStart])
+  }, [gameId, showStatus, applyStartedState, waitForStart])
 
   const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
   useEffect(() => {
@@ -442,10 +482,7 @@ export default function GamePage() {
           solver_name?: string
         }
         if (data.type === 'game_started' && data.started_at) {
-          startTimerFromServerTime(data.started_at)
-          setGameStarted(true)
-          setLoreNarrationActive(true)
-          setShowNarrationButton(true)
+          applyStartedState(data.started_at)
           return
         }
         if (data.type === 'game_over' || data.event === 'game_over') {
@@ -492,7 +529,7 @@ export default function GamePage() {
         puzzleSolvedTimeoutRef.current = null
       }
     }
-  }, [gameId, startTimerFromServerTime, syncGameStateFromServer])
+  }, [gameId, applyStartedState, syncGameStateFromServer])
 
   const onRoomImageLoad = useCallback(() => {
     setRoomImageLoaded(true)

@@ -15,7 +15,7 @@ from services.game_session import (
     save_game,
     is_game_active,
 )
-from utils.urls import game_page_url
+from utils.urls import game_entry_url
 from infrastructure.redis.redis_client import redis_get_leaderboard_top10
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ async def start_game_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     chat_data = context.chat_data
     existing_game_id = chat_data.get("game_id")
     if is_game_active(chat_data) and existing_game_id:
-        game_url = game_page_url(existing_game_id)
+        game_url = game_entry_url(existing_game_id)
         text = "יש כבר משחק פעיל בקבוצה. אפשר להיכנס למשחק הקיים:"
         await update.message.reply_text(
             text,
@@ -147,7 +147,7 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if game:
             game["started_at"] = datetime.now(timezone.utc).isoformat()
             save_game(game_id, game)
-        game_url = game_page_url(game_id)
+        game_url = game_entry_url(game_id)
         if "lobby_msg_id" not in chat_data:
             await _answer_once()
             return
