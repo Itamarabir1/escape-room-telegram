@@ -31,9 +31,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     logger.debug("callback data=%s chat_id=%s", query.data, update.effective_chat.id if update.effective_chat else None)
 
     if query.data == "top10":
+        await query.answer()
         top = redis_get_leaderboard_top10()
         if not top:
-            await query.answer("עדיין אין תוצאות. היו הראשונים לסיים! 🏆", show_alert=True)
+            await query.message.reply_text("עדיין אין תוצאות. היו הראשונים לסיים! 🏆")
             return
         medals = ("🥇", "🥈", "🥉") + ("4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟")
         lines = ["🏆 *עשרת הגדולים ביותר* 🏆\n"]
@@ -44,7 +45,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             time_str = f"{m} דק׳ {s} שניות" if m else f"{s} שניות"
             icon = medals[i - 1] if i <= len(medals) else f"{i}."
             lines.append(f"{icon} *{name}*\n   ⏱ {time_str}")
-        await query.answer()
         await query.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
     elif query.data == "ignore_welcome":

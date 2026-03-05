@@ -102,9 +102,10 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             logger.debug("lobby_join edit_message_text: %s", e)
 
     elif query.data == "lobby_leaderboard":
+        await query.answer()
         top = redis_get_leaderboard_top10()
         if not top:
-            await query.answer("אין עדיין שיאים 🏆", show_alert=True)
+            await query.message.reply_text("אין עדיין שיאים 🏆")
             return
         lines = []
         for i, (member, score) in enumerate(top, 1):
@@ -113,7 +114,7 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             time_str = f"{m:02d}:{s:02d}"
             display = member if member.isdigit() is False else f"קבוצה {member}"
             lines.append(f"{i}. {display} — {time_str}")
-        await query.answer("\n".join(lines), show_alert=True)
+        await query.message.reply_text("🏆 עשרת הגדולים\n\n" + "\n".join(lines))
 
     elif query.data == "lobby_start":
         answered = False
@@ -142,6 +143,7 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             logger.warning("lobby_start missing chat_id")
             await _answer_once(text="אירעה שגיאה. נסו שוב.", show_alert=True)
             return
+        await _answer_once(text="מתחיל...")
         game_id = finish_registration(chat_id, chat_data)
         game = get_game_by_id(game_id)
         if game:
@@ -149,7 +151,6 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             save_game(game_id, game)
         game_url = game_entry_url(game_id)
         if "lobby_msg_id" not in chat_data:
-            await _answer_once()
             return
         try:
             await query.edit_message_text(
@@ -172,8 +173,6 @@ async def lobby_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     [InlineKeyboardButton("🎮 כנס למשחק", url=game_url)],
                 ]),
             )
-        finally:
-            await _answer_once()
 
 
 def register_start_game_handler(application) -> None:
