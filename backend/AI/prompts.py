@@ -1,4 +1,4 @@
-# פרומפט ליצירת תמונת החדר – מתאר מה יש בכל קיר (לשימוש ב-generate_escape_room_image.py)
+# פרומפט ליצירת תמונת החדר – מתאר מה יש בכל קיר
 ROOM_WALLS_IMAGE_PROMPT = (
     "photorealistic escape room interior, moody warm lighting, "
     "dark green and brown walls, ornate red carpet on floor, "
@@ -53,7 +53,7 @@ Items:
 - item_3: מסך הולוגרמה עם נתונים חסויים, action_type collect (BACK wall center)
 """
 
-# פרומפט ליצירת תמונה בלבד (בלי Items) – לשימוש ב-generate_science_lab_image.py
+# פרומפט ליצירת תמונה בלבד (בלי Items)
 SCIENCE_LAB_IMAGE_PROMPT = (
     "sci-fi illustration, cold blue and white tones, neon lighting, "
     "futuristic 2D digital illustration, vibrant colors, "

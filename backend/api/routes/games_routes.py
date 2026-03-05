@@ -1,7 +1,7 @@
 """Game API routes: endpoint definitions only. Delegates to games.controller."""
 from fastapi import APIRouter, Request
 
-from schemas.game_schema import GameActionRequest, GameActionResponse
+from api.schemas.game_schema import GameActionRequest, GameActionResponse
 from domain.game import GameStateResponse
 from api.controllers.games_controller import (
     game_start as _game_start,

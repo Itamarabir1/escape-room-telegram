@@ -7,6 +7,8 @@
 
 מבנה הפרויקט (Backend + Frontend): **`backend/ARCHITECTURE.md`**. חוזה API: **`backend/docs/API_CONTRACT.md`**.
 
+**Backend:** תלויות מנוהלות עם [uv](https://docs.astral.sh/uv/) בלבד (`pyproject.toml` + `uv.lock`). אין שימוש ב־pip/requirements.txt. לייצוא ל־`requirements.txt` אם נדרש: `cd backend && uv export -o requirements.txt`.
+
 ## Docker (פיתוח מקומי – מומלץ)
 
 הפרויקט כולל `docker-compose.yml` עם backend, frontend (nginx), postgres ו-redis.
@@ -25,10 +27,10 @@ docker compose up --build
 
 כדי שהכל ירוץ אצלך בלי Render (טעינה מהירה, ללא המתנה ל-deploy):
 
-1. **התקנת תלויות** (פעם אחת):
+1. **התקנת תלויות** (פעם אחת; דורש [uv](https://docs.astral.sh/uv/)):
    ```bash
    cd backend
-   pip install -r requirements.txt
+   uv sync
    ```
 
 2. **הגדרת סביבה (בקאנד)** – העתק `backend/.env.example` ל-`backend/.env` והשלם ערכים (חובה: `TELEGRAM_TOKEN` מ-@BotFather).  
@@ -45,9 +47,8 @@ docker compose up --build
 4. **הרצת השרת** (תמיד מתוך `backend`):
    ```bash
    cd backend
-   python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   uv run uvicorn main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port 8000
    ```
-   או: `uvicorn main:app --reload --port 8000`
 
 5. **בדיקה**: פתח את הבוט בקבוצה → `/start_game` → הירשם → "כולם פה, אפשר להתחיל!" → הבוט ישלח לינק. פתח את הלינק **בדפדפן במחשב** – אם רצת עם Docker השתמש ב-`http://localhost:3000/game?game_id=...`, אם עם uvicorn + פרונט dev השתמש ב-`http://localhost:5173/game?game_id=...` (Vite עם proxy ל-API).
 

@@ -1,89 +1,17 @@
 # pyright: reportMissingImports=false
-"""Application bootstrap: wires routers, webhook, static; starts bot on startup."""
-import asyncio
-import logging
-
+"""Entry point: create app, register startup, run server."""
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from telegram import Update
 
-from config.config import config
-from infrastructure.database.session import init_db, wait_for_db
-from api.routes.games_routes import router as games_router
-from api.routes.sse_game_routes import router as sse_game_router
-from api.routes.pages_routes import router as pages_router
-from api.routes.health_routes import router as health_router
-from api.routes.media_routes import router as media_router
-from api.bot.app import create_telegram_app, run_telegram
-from services.game_lifecycle_service import check_expired_games_loop
-from services.sse_registry import sse_pubsub_listener_loop
+from config import config
+from api.app_factory import create_app
+from bootstrap import bootstrap
 
-logger = logging.getLogger(__name__)
-
-app = FastAPI(title="Telegram Bot - חדר בריחה")
-
-_origins = [
-    config.WEBAPP_URL or config.FRONTEND_ORIGIN_FALLBACK,
-    config.FRONTEND_ORIGIN_FALLBACK,
-    "http://localhost:3000",
-    "http://localhost:5173",
-]
-_origins = list(dict.fromkeys(_origins))
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(games_router, prefix="/api")
-app.include_router(sse_game_router, prefix="/sse")
-app.include_router(pages_router)
-app.include_router(health_router)
-app.include_router(media_router)
-
-
-@app.get("/")
-async def root():
-    return {"service": "escape-room-telegram-api", "docs": "/docs"}
-
-
-@app.get("/.well-known/appspecific/com.chrome.devtools.json")
-async def chrome_devtools_well_known():
-    return {}
-
-
-@app.post("/webhook")
-async def telegram_webhook(request: Request):
-    if not hasattr(app.state, "tg_app"):
-        logger.error("Webhook called before telegram app initialization")
-        raise HTTPException(status_code=503, detail="Telegram app is not initialized")
-    try:
-        data = await request.json()
-        update = Update.de_json(data=data, bot=app.state.tg_app.bot)
-        await app.state.tg_app.update_queue.put(update)
-    except Exception as e:
-        logger.exception("Webhook processing failed: %s", e)
-        raise HTTPException(status_code=500, detail="Webhook processing failed") from e
-    return {"ok": True}
+app = create_app()
 
 
 @app.on_event("startup")
-async def startup_event():
-    logger.info("Startup: waiting for database")
-    wait_for_db()
-    logger.info("Startup: database is ready")
-    init_db()
-    logger.info("Startup: database init completed")
-    tg_app = create_telegram_app()
-    app.state.tg_app = tg_app
-    asyncio.create_task(check_expired_games_loop())
-    asyncio.create_task(sse_pubsub_listener_loop())
-    logger.info("Startup: starting telegram runtime")
-    await run_telegram(tg_app)
-    logger.info("Startup: telegram runtime started")
+async def on_startup():
+    await bootstrap(app)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 All task content and correct answers live here (backend); validation is always server-side.
 Positions (x,y) mimic where objects will sit on the real image later."""
 
-from utils.puzzle import CAESAR_SHIFT, PROMPT_TEXT, SAFE_BACKSTORY, caesar_encode
+from data.puzzle import CAESAR_SHIFT, PROMPT_TEXT, SAFE_BACKSTORY, caesar_encode
 
 # Room canvas size – גדול מהמסך כדי שיהיה צורך לגלול ימינה/שמאלה (פנורמה)
 DEMO_ROOM_WIDTH = 1280

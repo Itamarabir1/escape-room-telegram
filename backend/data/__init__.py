@@ -1,1 +1,1 @@
-# Data modules: demo room, optional future task definitions from DB.
+# Game content: demo_room, puzzle (encoding, messages, dependencies).

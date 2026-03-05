@@ -2,7 +2,7 @@
 """Single place for app URLs. Uses config for base."""
 from urllib.parse import quote
 
-from config.config import config
+from config import config
 
 
 def game_app_url() -> str:

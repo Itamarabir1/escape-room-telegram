@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from config.config import config
+from config import config
 from data.demo_room import (
     DEMO_ROOM_HEIGHT,
     DEMO_ROOM_ITEMS,
@@ -11,10 +11,8 @@ from data.demo_room import (
     DEMO_ROOM_PUZZLES,
     DEMO_ROOM_WIDTH,
 )
-from data.puzzle_dependencies import get_puzzle_dependencies
-from domain.game import GameStateResponse, PuzzleResponse
-from domain.puzzle_status import PuzzleStatus
-from utils.puzzle import SAFE_BACKSTORY
+from data.puzzle import SAFE_BACKSTORY, get_puzzle_dependencies
+from domain.game import GameStateResponse, PuzzleResponse, PuzzleStatus
 
 logger = logging.getLogger(__name__)
 

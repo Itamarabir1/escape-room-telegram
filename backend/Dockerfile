@@ -2,17 +2,17 @@
 # The images/ directory must exist at repo root (copied as ./images/).
 FROM python:3.11-slim
 
-WORKDIR /app
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+WORKDIR /app
 COPY backend/ ./backend/
 COPY images/ ./images/
 
-# Use a virtual env to avoid "Running pip as the 'root' user" warning and follow best practice.
-ENV VIRTUAL_ENV=/opt/venv
-RUN python3 -m venv /opt/venv
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-RUN pip install --no-cache-dir -r backend/requirements.txt
+# Single tool for deps: uv (pyproject.toml + uv.lock). No pip/requirements.txt.
+ENV UV_LINK_MODE=copy
+ENV UV_NO_DEV=1
+WORKDIR /app/backend
+RUN uv sync --locked
 
 # Run as non-root user.
 RUN adduser --disabled-password --gecos "" appuser \
@@ -21,6 +21,7 @@ USER appuser
 
 WORKDIR /app/backend
 ENV PYTHONPATH=/app/backend
+ENV PATH="/app/backend/.venv/bin:$PATH"
 
 EXPOSE 8000
 

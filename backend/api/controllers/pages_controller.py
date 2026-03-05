@@ -1,12 +1,14 @@
 # pyright: reportMissingImports=false
 """Pages controller: redirect to frontend."""
+from __future__ import annotations
+
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 
-from config.config import config
+from config import config
 
 
-async def get_game_page(request: Request):
+async def get_game_page(request: Request) -> RedirectResponse | dict[str, str]:
     if config.WEBAPP_URL:
         path = request.url.path
         query = request.url.query

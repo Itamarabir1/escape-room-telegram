@@ -1,7 +1,14 @@
 # pyright: reportMissingImports=false
-"""Domain schema for game session. TypedDict response shapes shared by API and application layer."""
-from typing import Any
+"""Domain schema for game session. TypedDict response shapes and enums shared by API and application layer."""
+from enum import Enum
 from typing_extensions import NotRequired, TypedDict  # pyright: ignore[reportMissingModuleSource]
+
+
+class PuzzleStatus(str, Enum):
+    """Status of a single puzzle in the room (per group/game)."""
+
+    NOT_SOLVED = "not_solved"
+    SOLVED = "solved"
 
 
 class RoomItemResponse(TypedDict):

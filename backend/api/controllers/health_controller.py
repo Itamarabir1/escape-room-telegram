@@ -2,7 +2,7 @@
 """Health controller: return status and mode."""
 from fastapi.responses import JSONResponse
 
-from config.config import config
+from config import config
 
 HEALTH_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate"}
 

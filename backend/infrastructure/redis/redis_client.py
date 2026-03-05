@@ -6,7 +6,7 @@ from typing import Any
 
 import redis
 
-from config.config import config
+from config import config
 
 logger = logging.getLogger(__name__)
 

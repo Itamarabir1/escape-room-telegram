@@ -14,13 +14,11 @@
 
 ```mermaid
 flowchart TB
-    subgraph Presentation["Presentation Layer (app/)"]
-        API["api/games.py\nREST thin"]
-        Media["routes/media.py\n/room, /audio"]
-        Pages["routes/pages.py\n/game"]
-        Health["routes/health.py\n/health"]
-        Bot["bot/\nTelegram handlers"]
-        Webhook["/webhook"]
+    subgraph Presentation["Presentation Layer"]
+        AppFactory["api/app_factory.py\nFastAPI app + /webhook"]
+        Routes["api/routes/\n*games, sse, pages, health, media"]
+        Controllers["api/controllers/"]
+        Bot["bot/\nTelegram handlers (sibling of api)"]
     end
 
     subgraph Application["Application Layer (services/)"]
@@ -32,27 +30,24 @@ flowchart TB
     end
 
     subgraph Domain["Domain Layer (domain/)"]
-        Schema["domain/game.py\nGameStateResponse, GameActionRequest, OkResponse"]
+        Schema["domain/game.py\nGameStateResponse, PuzzleResponse, ..."]
     end
 
     subgraph Infrastructure["Infrastructure"]
-        Config["config.py"]
-        Paths["paths.py\nmedia dirs"]
+        Config["config/"]
+        Infra["infrastructure/\ndatabase, redis, models, repositories"]
     end
 
-    API --> GameAuth
-    API --> GameAPI
-    API --> GameLifecycle
-    API --> GameAction
-    API --> Schema
-    Media --> Paths
-    Health --> Config
-    Pages --> Paths
+    Routes --> Controllers
+    Controllers --> GameAuth
+    Controllers --> GameAPI
+    Controllers --> GameLifecycle
+    Controllers --> GameAction
+    Controllers --> Schema
     Bot --> GameSession
     GameAuth --> GameSession
     GameLifecycle --> GameSession
     GameAction --> GameSession
-    GameSession --> Schema
     GameSession --> Config
 ```
 
@@ -62,27 +57,57 @@ flowchart TB
 
 | שכבה | תיקייה | תפקיד |
 |------|--------|--------|
-| **Presentation** | `app/` | API (REST), דפים (/game), health (/health), בוט טלגרם, webhook. רק קלט/פלט – קורא ל-Application. |
-| **Application** | `services/` | לוגיקת שימוש: הרשמה, יצירת משחק, אחסון בזיכרון. משתמש ב-Domain כ-schema. |
-| **Domain** | `domain/` | טיפוסים משותפים (TypedDict + Pydantic): `GameStateResponse`, `GameActionRequest`, `GameActionResponse`, `OkResponse`, `HealthResponse`. חוזה בין API ל-Application. |
-| **Infrastructure** | `config.py`, `paths.py`, `utils/` | הגדרות (env, PORT, MODE, base_url), נתיבי מדיה ופרויקט. ללא לוגיקה עסקית. |
+| **Presentation** | `api/` (REST), `bot/` (Telegram) | `api/`: routes, controllers, בניית FastAPI ו־/webhook. `bot/`: אפליקציית טלגרם (handlers). שניהם קוראים ל-Application. |
+| **Application** | `services/` | לוגיקת שימוש: הרשמה, משחק, lifecycle, פעולות חידות. משתמש ב-Domain וב-Infrastructure. |
+| **Domain** | `domain/` | טיפוסים משותפים (TypedDict): `GameStateResponse`, `PuzzleResponse`, `HealthResponse`. חוזה בין API ל-Application. |
+| **Infrastructure** | `config/`, `infrastructure/` (database, redis, models, repositories), `utils/` | הגדרות, DB, Redis, ORM, גישה ל-DB, עזרים (URLs, אימות Telegram). |
+
+---
+
+## מבנה תיקיות הבקאנד (אין כפילויות – כל תיקייה לפי נושא)
+
+| תיקייה | תוכן | קשור לנושא? |
+|--------|------|-------------|
+| **`api/`** | שכבת הכניסה ל־HTTP בלבד: routes, controllers, בניית FastAPI. | ✓ API = REST. |
+| `api/routes/` | הגדרת endpoints בלבד (games, sse, pages, health, media). | ✓ |
+| `api/controllers/` | טיפול בבקשה: אימות, קריאה ל-services, החזרת תגובה. | ✓ |
+| `api/app_factory.py` | בניית FastAPI (middleware, routers, GET /, POST /webhook). | ✓ |
+| **`bot/`** | ערוץ כניסה נפרד: אפליקציית טלגרם (אותה רמה כמו api/). | ✓ בוט ≠ חלק מה-API. |
+| `bot/handlers/` | handlers לפקודות ולכפתורים (start_game, game, לובי). | ✓ |
+| `bot/app.py` | יצירת Telegram Application, webhook/polling. | ✓ |
+| **`config/`** | הגדרות אפליקציה (env, PORT, נתיבי מדיה). | ✓ |
+| **`services/`** | לוגיקה עסקית: session, auth, API state, lifecycle, action, SSE. | ✓ |
+| **`domain/`** | טיפוסי תגובה (TypedDict, Enum). | ✓ |
+| `api/schemas/` | Pydantic לבקשות/תגובות API (GameActionRequest וכו') – תחת api כי רק ה-API משתמש. | ✓ |
+| **`infrastructure/`** | תשתית: DB, Redis, ORM, גישה ל-DB. | ✓ |
+| `infrastructure/database/` | session, init_db, schema.sql. | ✓ |
+| `infrastructure/redis/` | redis_client (משחק, leaderboard, pub/sub). | ✓ |
+| `infrastructure/models/` | מודלי ORM (Postgres): Group, Room, Task, Player. | ✓ |
+| `infrastructure/repositories/` | גישה ל-DB (group_repository → Groups). | ✓ |
+| **`data/`** | תוכן משחק: demo_room, puzzle (קידוד, הודעות, תלויות בין חידות). | ✓ |
+| **`utils/`** | עזרים כלליים: urls, אימות Telegram Web App (ללא לוגיקת משחק). | ✓ |
+| **`AI/`** | פרומפטים ל-AI (כרגע כמעט לא בשימוש ב-runtime). | ✓ תוכן AI. |
+
+קבצים בשורש: `main.py` (כניסה), `bootstrap.py` (אתחול בהפעלה).
 
 ---
 
 ## קבצים עיקריים
 
-- **`app/main.py`** – חיבור בלבד: routers (api, ws, pages, health, media), mount ל-static, webhook, startup (בוט). ללא route handlers של מדיה או הגדרת paths.
-- **`paths.py`** – קבועי נתיבים (IMAGES_DIR, ROOM_ASSETS_DIR, AUDIO_DIR, FRONTEND_DIST, LORE_WAV_PATH). בשימוש ב-main ו-`routes/media`.
-- **`app/routes/media.py`** – הגשת מדיה: `/room/escape_room.png`, `/room/door_open.mp4`, `/room/science_lab_room.png`, `/audio/lore.wav`.
-- **`app/routes/health.py`** – קובץ ייעודי ל-health. מחזיר `{"status": "awake", "mode": "production"}`.
-- **`app/api/games.py`** – API משחק (endpoints דקים): אימות דרך `game_auth_service`, לוגיקה ב-`game_api_service`, `game_lifecycle_service`, `game_action_service`.
-- **`services/game_auth_service.py`** – `get_game_for_request`: טעינת משחק, אימות initData, late join. זורק HTTPException ב-401/404.
-- **`services/game_lifecycle_service.py`** – `record_game_start`, `handle_time_up`, `handle_door_opened`.
-- **`services/game_action_service.py`** – `submit_puzzle_action`: ולידציה, השוואת תשובה, עדכון state, broadcast.
-- **`services/game_api_service.py`** – `apply_demo_room`, `build_game_state_response`, `needs_demo_room`, `item_label`, `all_unlock_puzzles_solved`.
-- **`domain/game.py`** – סכמות: `GameStateResponse`, `GameActionRequest`, `GameActionResponse`, `OkResponse`, `HealthResponse`.
-- **`config.py`** – env, PORT, MODE, base_url.
-- **`docs/API_CONTRACT.md`** – חוזה API: endpoints, request/response schemas, אירועי WebSocket.
+- **`main.py`** – כניסה: ייבוא `create_app`, רישום startup, הרצת uvicorn.
+- **`bootstrap.py`** – אתחול: config, DB, בוט, משימות רקע, הרצת Telegram.
+- **`api/app_factory.py`** – בניית FastAPI: CORS, routers, GET /, POST /webhook.
+- **`api/routes/*`** – הגדרת endpoints; כל route קורא ל-controller מתאים.
+- **`api/controllers/*`** – games (משחק + lore audio), media (קבצים סטטיים), pages (redirect), health, sse.
+- **`bot/app.py`** – יצירת Telegram Application, הרשמת handlers, webhook/polling.
+- **`config/settings.py`** – env, PORT, MODE, נתיבי מדיה (IMAGES_DIR, LORE_WAV_PATH וכו').
+- **`services/game_auth_service.py`** – אימות initData, טעינת משחק, late join.
+- **`services/game_lifecycle_service.py`** – record_game_start, handle_time_up, handle_door_opened, check_expired_games_loop.
+- **`services/game_action_service.py`** – submit_puzzle_action.
+- **`services/game_api_service.py`** – apply_demo_room, build_game_state_response, needs_demo_room.
+- **`domain/game.py`** – TypedDict + Enum: GameStateResponse, PuzzleResponse, HealthResponse, PuzzleStatus.
+- **`api/schemas/game_schema.py`** – Pydantic: GameActionRequest, GameActionResponse, OkResponse.
+- **`docs/API_CONTRACT.md`** – חוזה API: endpoints, request/response.
 
 ---
 
@@ -107,7 +132,7 @@ flowchart TB
 
 ## סטטוס חידות משותף לכל קבוצה
 
-סטטוס החידות (נפתר/לא נפתר) **משותף לכל חברי הקבוצה בלבד**. כל משחק מזוהה ב־`game_id` יחיד; הנתונים (כולל `room_solved`) נשמרים ב־Redis (מפתח `game:{game_id}`) או בזיכרון ב־`game_session`. קבוצות שונות מקבלות `game_id` שונה ולכן נתונים מופרדים. כששחקן פותר חידה, השרת מעדכן את `room_solved`, שומר, ומשדר אירוע `puzzle_solved` לכל חיבורי ה־WebSocket של אותו משחק – כך כל השחקנים רואים את אותו סטטוס. תלויות בין חידות (למשל לוח הבקרה רק אחרי השעון) מוגדרות ב־`data/puzzle_dependencies.py` ונאכפות ב־`game_action_service`.
+סטטוס החידות (נפתר/לא נפתר) **משותף לכל חברי הקבוצה בלבד**. כל משחק מזוהה ב־`game_id` יחיד; הנתונים (כולל `room_solved`) נשמרים ב־Redis (מפתח `game:{game_id}`) או בזיכרון ב־`game_session`. קבוצות שונות מקבלות `game_id` שונה ולכן נתונים מופרדים. כששחקן פותר חידה, השרת מעדכן את `room_solved`, שומר, ומשדר אירוע `puzzle_solved` לכל חיבורי ה־WebSocket של אותו משחק – כך כל השחקנים רואים את אותו סטטוס. תלויות בין חידות (למשל לוח הבקרה רק אחרי השעון) מוגדרות ב־`data/puzzle.py` ונאכפות ב־`game_action_service`.
 
 ---
 

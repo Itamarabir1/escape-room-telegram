@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
-from config.config import config
+from config import config
 from services.game_session import get_game_by_id, save_game
 from utils.telegram_webapp import (
     get_user_first_name_from_validated,
@@ -95,8 +95,3 @@ def get_game_and_user_for_realtime(game_id: str, init_data: str) -> tuple[dict, 
         )
         raise HTTPException(status_code=403, detail=REALTIME_PLAYERS_ONLY_DETAIL)
     return game, int(user_id)
-
-
-def get_game_and_user_for_ws(game_id: str, init_data: str) -> tuple[dict, int]:
-    """Backward-compatible alias; prefer get_game_and_user_for_realtime."""
-    return get_game_and_user_for_realtime(game_id, init_data)

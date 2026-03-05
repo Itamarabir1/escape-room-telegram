@@ -6,7 +6,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import FileResponse
 
 from domain.game import GameStateResponse
-from schemas.game_schema import GameActionRequest, GameActionResponse
+from api.schemas.game_schema import GameActionRequest, GameActionResponse
 from services.game_api_service import (
     apply_demo_room,
     build_game_state_response,
@@ -19,7 +19,7 @@ from services.game_lifecycle_service import (
     handle_time_up as lifecycle_handle_time_up,
     record_game_start,
 )
-from config.paths import LORE_WAV_PATH
+from config import LORE_WAV_PATH
 from services.game_session import save_game
 from services.sse_registry import broadcast_game_started
 

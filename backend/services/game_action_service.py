@@ -5,17 +5,18 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from domain.puzzle_status import PuzzleStatus
-from data.puzzle_dependencies import get_dependencies_for_item, get_block_message
-from services.game_api_service import item_label
-from services.game_session import save_game
-from services.sse_registry import broadcast_puzzle_solved
-from utils.puzzle import (
+from domain.game import PuzzleStatus
+from data.puzzle import (
+    get_block_message,
+    get_dependencies_for_item,
     ITEM_SUCCESS_MESSAGES,
     SUCCESS_MESSAGE,
     WRONG_MESSAGE,
     normalize_answer,
 )
+from services.game_api_service import item_label
+from services.game_session import save_game
+from services.sse_registry import broadcast_puzzle_solved
 
 logger = logging.getLogger(__name__)
 

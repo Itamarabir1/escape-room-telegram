@@ -1,8 +1,8 @@
-"""Media controller: serve static files. Paths from config.paths."""
+"""Media controller: serve static files. Paths from config."""
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
-from config.paths import IMAGES_DIR, LORE_WAV_PATH, ROOM_ASSETS_DIR
+from config import IMAGES_DIR, LORE_WAV_PATH, ROOM_ASSETS_DIR
 
 
 async def serve_room_image():

@@ -8,8 +8,8 @@ from typing import Generator
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from config.config import config
-from models.db_models import Base
+from config import config
+from infrastructure.models.db_models import Base
 
 logger = logging.getLogger(__name__)
 DATABASE_URL = config.DATABASE_URL
