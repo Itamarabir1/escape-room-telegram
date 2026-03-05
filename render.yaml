@@ -1,5 +1,4 @@
 # Blueprint: API, Frontend, Postgres, Redis.
-projectId: prj-d6klh9tactks73a06f7g
 
 services:
   # Backend API + Telegram bot
