@@ -4,11 +4,16 @@
  * All requests use absolute API URL so the static server never intercepts them.
  */
 
-const API_BASE_URL_FALLBACK = 'https://escape-room-telegram-api.onrender.com' // Must match backend in production; override with VITE_API_URL.
+const API_BASE_URL_FALLBACK = 'http://localhost:8000'
+let missingApiUrlWarned = false
 
 function getApiBase(): string {
   const raw = import.meta.env.VITE_API_URL || API_BASE_URL_FALLBACK
   const base = typeof raw === 'string' ? String(raw).trim().replace(/\/+$/, '') : API_BASE_URL_FALLBACK
+  if (!import.meta.env.VITE_API_URL && import.meta.env.PROD && !missingApiUrlWarned) {
+    missingApiUrlWarned = true
+    console.warn('VITE_API_URL is not set in production build; falling back to localhost.')
+  }
   return base || API_BASE_URL_FALLBACK
 }
 

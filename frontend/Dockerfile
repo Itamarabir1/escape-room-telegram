@@ -5,7 +5,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Inject API URL at build time
-ARG VITE_API_URL=https://escape-room-telegram-api.onrender.com
+ARG VITE_API_URL
 ARG VITE_BASE_PATH=/
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_BASE_PATH=$VITE_BASE_PATH

@@ -68,6 +68,19 @@ docker compose up --build
 
 **אין צורך יותר** לבנות `frontend/dist` locally ולהעלות ל-Git – הפרונט נבנה על Render מתוך `frontend/Dockerfile`.
 
+## גבולות קונפיג (Blueprint vs Secrets vs .env.example)
+
+- **`render.yaml`** — מגדיר תשתית וקישוריות בין שירותים בלבד (services, databases, `fromDatabase`, `fromService`, build args).
+- **`escape-room-secrets` (Render Environment Group)** — מכיל סודות בלבד (`TELEGRAM_TOKEN`, `GEMINI_API_KEY`, `HF_TOKEN` וכו').
+- **`backend/.env.example` + `frontend/.env.example`** — תבניות לוקאליות ללא ערכים אמיתיים; משמשות onboarding ותיעוד.
+
+### Checklist לפני/אחרי Deploy
+
+1. אין כפילויות בין `render.yaml` ל־Environment Group עבור אותו key.
+2. `DATABASE_URL` ו־`REDIS_URL` מגיעים מ־`fromDatabase`/`fromService` ולא מערכים ידניים.
+3. לא שומרים סודות בקוד או ב־`.env.example`.
+4. אחרי שינוי env ב־Render מבצעים redeploy לשירות הרלוונטי.
+
 **אם הבוט לא מגיב / שגיאות מטלגרם:** בדוק בלוגים של שירות הבקאנד ב-Render. אם מופיעות שגיאות **"Unauthorized"** או **401** מטלגרם – הסיבה בדרך כלל היא ש-`TELEGRAM_TOKEN` חסר או שגוי. וודא ב-Environment של escape-room-telegram-api שהמשתנה `TELEGRAM_TOKEN` מוגדר עם הטוקן מ-@BotFather.
 
 ### בדיקת חיים

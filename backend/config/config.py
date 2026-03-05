@@ -22,7 +22,7 @@ class Config:
     TELEGRAM_BOT_USERNAME = (os.getenv("TELEGRAM_BOT_USERNAME") or "").strip().lstrip("@")
     TELEGRAM_MINI_APP_SHORT_NAME = (os.getenv("TELEGRAM_MINI_APP_SHORT_NAME") or "").strip().strip("/")
     WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
-    FRONTEND_ORIGIN_FALLBACK = (os.getenv("FRONTEND_ORIGIN_FALLBACK") or "https://escape-room-telegram.onrender.com").strip().rstrip("/")
+    FRONTEND_ORIGIN_FALLBACK = (os.getenv("FRONTEND_ORIGIN_FALLBACK") or "http://localhost:5173").strip().rstrip("/")
     VITE_API_URL = (os.getenv("VITE_API_URL") or "").strip().rstrip("/")
     PORT = int(os.getenv("PORT", "8000"))
     MODE = os.getenv("ENV", "production")

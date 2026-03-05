@@ -36,8 +36,9 @@ export function Banners({
         </div>
       )}
       {puzzleSolvedNotification && (
-        <div className="puzzle-solved-banner" role="alert">
-          {puzzleSolvedNotification}
+        <div className="sse-toast" role="alert" aria-live="assertive">
+          <div className="sse-toast-title">חידה נפתרה</div>
+          <div className="sse-toast-text">{puzzleSolvedNotification}</div>
         </div>
       )}
       {doorLockedMessage && (
