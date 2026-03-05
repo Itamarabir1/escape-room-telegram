@@ -21,6 +21,7 @@ class Config:
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
     TELEGRAM_BOT_USERNAME = (os.getenv("TELEGRAM_BOT_USERNAME") or "").strip().lstrip("@")
     TELEGRAM_MINI_APP_SHORT_NAME = (os.getenv("TELEGRAM_MINI_APP_SHORT_NAME") or "").strip().strip("/")
+    API_BASE_URL = (os.getenv("API_BASE_URL") or "").strip().rstrip("/")
     WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
     FRONTEND_ORIGIN_FALLBACK = (os.getenv("FRONTEND_ORIGIN_FALLBACK") or "http://localhost:5173").strip().rstrip("/")
     VITE_API_URL = (os.getenv("VITE_API_URL") or "").strip().rstrip("/")
@@ -74,6 +75,8 @@ class Config:
 Config.DATABASE_URL = Config._ensure_db_ssl(Config._raw_db_url)
 if not Config.TELEGRAM_TOKEN:
     logger.warning("TELEGRAM_TOKEN is missing")
+else:
+    logger.info("TELEGRAM_TOKEN is set (length=%d)", len(Config.TELEGRAM_TOKEN))
 if not Config.TELEGRAM_BOT_USERNAME or not Config.TELEGRAM_MINI_APP_SHORT_NAME:
     logger.warning(
         "Mini App deep-link config missing: set TELEGRAM_BOT_USERNAME and TELEGRAM_MINI_APP_SHORT_NAME. "

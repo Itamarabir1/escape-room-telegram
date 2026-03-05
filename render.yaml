@@ -19,6 +19,8 @@ services:
           name: escape-room-telegram-redis
           type: keyvalue
           property: connectionString
+      - key: API_BASE_URL
+        value: https://escape-room-telegram-api.onrender.com
       - key: WEBAPP_URL
         value: https://escape-room-telegram.onrender.com
       - key: VITE_API_URL

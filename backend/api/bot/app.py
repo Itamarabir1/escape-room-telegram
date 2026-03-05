@@ -37,8 +37,8 @@ async def run_telegram(application) -> None:
     await application.bot.delete_webhook(drop_pending_updates=True)
     logger.info("Webhook cleared (drop_pending_updates=True)")
 
-    if os.getenv("RENDER") and config.VITE_API_URL:
-        base = config.VITE_API_URL.rstrip("/")
+    if os.getenv("RENDER") and config.API_BASE_URL:
+        base = config.API_BASE_URL.rstrip("/")
         webhook_url = f"{base}/webhook"
         await application.bot.set_webhook(url=webhook_url)
         logger.info("Telegram mode=webhook webhook_url=%s", webhook_url)
