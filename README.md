@@ -42,7 +42,7 @@ docker compose up --build
    npm install
    npm run build
    ```
-   אם אתה רץ **בלי Docker**, הרץ את הפרונט: `npm run dev` (פורט 5173). ב-dev נטען אוטומטית `frontend/.env.development` (ב-Git) עם `VITE_API_URL=http://localhost:8000`. ל-production/build העתק `frontend/.env.example` ל-`frontend/.env` או הגדר משתנים ב-build.
+   אם אתה רץ **בלי Docker**, הרץ את הפרונט: `npm run dev` (פורט 5173). לפיתוח מקומי: העתק `frontend/.env.example` ל-`frontend/.env` והגדר `VITE_API_URL=http://localhost:8000` ו-`VITE_BASE_PATH=/`. ל-production/build משתנים מוזרקים ב-build (Render/Docker).
 
 4. **הרצת השרת** (תמיד מתוך `backend`):
    ```bash
@@ -91,7 +91,7 @@ docker compose up --build
 ## מבנה הפרויקט (הפרדה backend / frontend)
 
 - **`backend/`** — קוד Python (FastAPI, API, בוט). בפרודקשן **לא** מגיש קבצי פרונט; `/game` מפנה ל-`WEBAPP_URL`.
-- **`frontend/`** — Vite + React + TypeScript. נבנה ל-Docker (node build + nginx) או ל-`dist/` בפיתוח. משתמש ב-`VITE_API_URL` (ברירת מחדל בקוד: `http://localhost:8000`). תבנית: `frontend/.env.example`; פיתוח: `frontend/.env.development` (נטען ב-`npm run dev`).
+- **`frontend/`** — Vite + React + TypeScript. נבנה ל-Docker (node build + nginx) או ל-`dist/` בפיתוח. משתמש ב-`VITE_API_URL` (ברירת מחדל בקוד: `http://localhost:8000`). תבנית בלבד: `frontend/.env.example` — לפיתוח מקומי מעתיקים ל-`frontend/.env` וממלאים ערכים.
 
 ## ניקוי – קבצים שאפשר למחוק / להסיר מ-Git
 

@@ -14,7 +14,6 @@ venv
 **/.env
 !**/.env.example
 !**/.env.sample
-!**/.env.development
 
 # Generated room images (saved locally; remove this line to track them in Git)
 backend/room_images/

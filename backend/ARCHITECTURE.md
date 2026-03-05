@@ -139,8 +139,7 @@ flowchart TB
 ## מבנה הפרונט (frontend/src)
 
 - **`pages/GamePage.tsx`** – אורקסטרציה: state, effects, ו-render של המבנה הראשי. מייבא קומפוננטות ו-constants.
-- **`components/`** – קומפוננטות לשימוש חוזר: `Banners`, `StartUI`, `RoomView`, `TaskModal`, `DoorVideoOverlay`, `ScienceLabRoom`.
+- **`components/`** – קומפוננטות: `Banners`, `RoomView`, `TaskModal`, `DoorVideoOverlay`, `ScienceLabRoom`.
 - **`constants/`** – `messages.ts` (הודעות למשתמש), `roomHotspots.ts` (צורות hotspots, טיימר, `getDoorVideoSrc`, `formatTimer`).
 - **`utils/gameHelpers.ts`** – `getPuzzles`, `getPuzzleByItemId` (עזרים על `GameStateResponse`).
-- **`types/game.ts`** – re-export של טיפוסי משחק מ-`api/client`.
-- **`api/client.ts`** – מקור יחיד לקריאות API ולטיפוסי תגובה.
+- **`api/client.ts`** – מקור יחיד לקריאות API, טיפוסי תגובה (GameStateResponse וכו'), וקבועי חדר (DEMO_ROOM_*).

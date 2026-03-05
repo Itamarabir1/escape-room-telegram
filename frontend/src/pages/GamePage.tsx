@@ -20,7 +20,6 @@ import { DoorVideoOverlay } from '../components/DoorVideoOverlay'
 import { RoomView } from '../components/RoomView'
 import { ScienceLabRoom } from '../components/ScienceLabRoom'
 import { TaskModal } from '../components/TaskModal'
-import '../index.css'
 
 declare global {
   interface Window {

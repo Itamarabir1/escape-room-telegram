@@ -2,9 +2,16 @@
 
 פרויקט Vite + React + TypeScript. **הפרונט נמצא רק כאן** — אין קוד backend בתיקייה זו.
 
-- `src/` — מקור האפליקציה (דף משחק, API client)
-- `src/api/client.ts` — קריאות ל-backend (getGameState, sendGameAction, getLoreAudioUrl)
-- `dist/` — תוצאת בנייה (נוצר אחרי `npm run build`); הבקאנד מגיש אותה ב-`/static` ו-`/game`
+## מבנה תיקיות
+
+| תיקייה | תפקיד |
+|--------|--------|
+| `src/pages/` | דפים (GamePage – דף המשחק היחיד). |
+| `src/components/` | קומפוננטות: Banners, DoorVideoOverlay, RoomView, ScienceLabRoom, TaskModal. |
+| `src/api/` | `client.ts` – מקור יחיד לקריאות API, טיפוסי תגובה (GameStateResponse וכו'), וקבועי חדר (DEMO_ROOM_*). |
+| `src/constants/` | הודעות למשתמש (messages), צורות hotspots וטיימר (roomHotspots). |
+| `src/utils/` | עזרים על מצב משחק (gameHelpers: getPuzzles, getPuzzleByItemId). |
+| `dist/` | תוצאת בנייה (נוצר אחרי `npm run build`); הבקאנד מגיש ב-`/static` ו-`/game`. |
 
 ## סקריפטים
 
@@ -21,10 +28,3 @@
 
 1. `cd frontend && npm run build`
 2. הפעלת הבקאנד — הוא יגיש את `frontend/dist` ב-`/static` וב-`/game`.
-
-
-
-ג
-
-
-ג
