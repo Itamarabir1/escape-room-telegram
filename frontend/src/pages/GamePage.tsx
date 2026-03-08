@@ -1,98 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DependencyList, RefObject } from 'react'
 import {
   getGameState,
-  getGameSSEUrl,
-  fetchLoreAudio,
   notifyDoorOpened,
-  reportTimeUp,
   sendGameAction,
   type ApiError,
   type GameStateResponse,
-  type PuzzleSolvedEvent,
   type RoomItemResponse,
 } from '../api/client'
 import { MESSAGES } from '../constants/messages'
-import { INITIAL_TIMER_SECONDS } from '../constants/roomHotspots'
-import { getPuzzleByItemId, getPuzzles } from '../utils/gameHelpers'
+import { getBlockedItemMessage, getPuzzleSuccessMessage } from '../constants/puzzleMessages'
 import { Banners } from '../components/Banners'
 import { DoorVideoOverlay } from '../components/DoorVideoOverlay'
 import { RoomView } from '../components/RoomView'
 import { ScienceLabRoom } from '../components/ScienceLabRoom'
 import { TaskModal } from '../components/TaskModal'
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        version?: string
-        ready?: () => void | Promise<void>
-        expand?: () => void
-        initDataUnsafe?: { user?: { first_name?: string }; start_param?: string }
-        sendData?: (data: string) => void
-        BackButton?: {
-          show: () => void
-          hide: () => void
-          onClick: (callback: () => void) => void
-          offClick: (callback: () => void) => void
-        }
-        onEvent?: (eventType: string, callback: () => void) => void
-        offEvent?: (eventType: string, callback: () => void) => void
-      }
-    }
-  }
-}
+import { useCenterScrollOnLoad } from '../hooks/useCenterScrollOnLoad'
+import { useGameStateSync } from '../hooks/useGameStateSync'
+import { useGameSSE } from '../hooks/useGameSSE'
+import { useGameTimer } from '../hooks/useGameTimer'
+import { useNarration } from '../hooks/useNarration'
+import { getPuzzleByItemId, getPuzzles } from '../utils/gameHelpers'
 
 function getTelegramWebApp() {
   return window.Telegram?.WebApp ?? {}
-}
-
-const LORE_ACK_STORAGE_PREFIX = 'lore_ack'
-
-function getLoreAckStorageKey(gameId: string, startedAt: string): string {
-  return `${LORE_ACK_STORAGE_PREFIX}:${gameId}:${startedAt}`
-}
-
-function hasLoreAck(gameId: string, startedAt: string): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    return window.localStorage.getItem(getLoreAckStorageKey(gameId, startedAt)) === '1'
-  } catch {
-    return false
-  }
-}
-
-function persistLoreAck(gameId: string, startedAt: string): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(getLoreAckStorageKey(gameId, startedAt), '1')
-  } catch {
-    // ignore storage failures
-  }
-}
-
-function useCenterScrollOnLoad(
-  ref: RefObject<HTMLDivElement | null>,
-  active: boolean,
-  deps: DependencyList
-) {
-  useEffect(() => {
-    if (!active) return
-    const run = () => {
-      const el = ref.current
-      if (!el) return
-      const maxScroll = el.scrollWidth - el.clientWidth
-      el.scrollLeft = maxScroll > 0 ? maxScroll / 2 : 0
-    }
-    run()
-    requestAnimationFrame(() => requestAnimationFrame(run))
-    const t1 = setTimeout(run, 100)
-    const t2 = setTimeout(run, 400)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-    }
-  }, [active, ref, ...deps])
 }
 
 export default function GamePage() {
@@ -101,21 +31,8 @@ export default function GamePage() {
   const [statusError, setStatusError] = useState(false)
   const [roomLoading, setRoomLoading] = useState(true)
   const [room, setRoom] = useState<GameStateResponse | null>(null)
-  const [taskModalOpen, setTaskModalOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<RoomItemResponse | null>(null)
-  const [unlockAnswer, setUnlockAnswer] = useState('')
-  const [actionMessage, setActionMessage] = useState<{ text: string; isSuccess: boolean } | null>(null)
-  const [actionSubmitting, setActionSubmitting] = useState(false)
-  const [puzzleSolvedNotification, setPuzzleSolvedNotification] = useState<string | null>(null)
-  const [secondsLeft, setSecondsLeft] = useState(INITIAL_TIMER_SECONDS)
-  const [gameOver, setGameOver] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
   const [startedAtIso, setStartedAtIso] = useState<string | null>(null)
-  const [timerVisible, setTimerVisible] = useState(false)
-  const [loreNarrationActive, setLoreNarrationActive] = useState(false)
-  const [showNarrationButton, setShowNarrationButton] = useState(false)
-  const panoramaRef = useRef<HTMLDivElement>(null)
-  const scienceLabPanoramaRef = useRef<HTMLDivElement>(null)
   const [roomImageLoaded, setRoomImageLoaded] = useState(false)
   const [solvedItemIds, setSolvedItemIds] = useState<string[]>([])
   const [doorVideoPlaying, setDoorVideoPlaying] = useState(false)
@@ -123,15 +40,20 @@ export default function GamePage() {
   const [scienceLabImageLoaded, setScienceLabImageLoaded] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState(false)
   const [blockedItemMessage, setBlockedItemMessage] = useState<string | null>(null)
-  const lorePlayedRef = useRef(false)
+  const [puzzleSolvedNotification, setPuzzleSolvedNotification] = useState<string | null>(null)
 
-  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const timeUpSentRef = useRef(false)
-  const pollCleanupRef = useRef<(() => void) | null>(null)
-  const sseRecoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<RoomItemResponse | null>(null)
+  const [unlockAnswer, setUnlockAnswer] = useState('')
+  const [actionMessage, setActionMessage] = useState<{ text: string; isSuccess: boolean } | null>(null)
+  const [actionSubmitting, setActionSubmitting] = useState(false)
+
+  const panoramaRef = useRef<HTMLDivElement>(null)
+  const scienceLabPanoramaRef = useRef<HTMLDivElement>(null)
   const modalTTSRef = useRef<SpeechSynthesisUtterance | null>(null)
   const doorVideoRef = useRef<HTMLVideoElement | null>(null)
   const closeModalRef = useRef<() => void>(() => {})
+  const pollCleanupRef = useRef<(() => void) | null>(null)
 
   const tg = getTelegramWebApp()
   if (tg.expand) tg.expand()
@@ -152,239 +74,40 @@ export default function GamePage() {
     setStatusError(isError)
   }, [])
 
-  const handleTimeUp = useCallback(() => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current)
-      timerIntervalRef.current = null
-    }
-    setGameOver(true)
-    if (gameId && !timeUpSentRef.current) {
-      timeUpSentRef.current = true
-      reportTimeUp(gameId).catch(() => {})
-    }
-  }, [gameId])
-
-  const startTimerFromServerTime = useCallback(
-    (startedAt: string) => {
-      const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
-      let remaining = Math.max(INITIAL_TIMER_SECONDS - elapsed, 0)
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current)
-        timerIntervalRef.current = null
-      }
-      if (remaining === 0) {
-        handleTimeUp()
-        return
-      }
-      setSecondsLeft(remaining)
-      timerIntervalRef.current = setInterval(() => {
-        remaining -= 1
-        setSecondsLeft(remaining)
-        if (remaining <= 0 && timerIntervalRef.current) {
-          clearInterval(timerIntervalRef.current)
-          timerIntervalRef.current = null
-          handleTimeUp()
-        }
-      }, 1000)
-    },
-    [handleTimeUp]
+  const timer = useGameTimer(gameId)
+  const narration = useNarration(
+    gameId,
+    gameStarted,
+    startedAtIso,
+    room,
+    timer.setTimerVisible
   )
+  const sync = useGameStateSync({
+    gameId,
+    setRoom,
+    setSolvedItemIds,
+    setDoorVideoPlaying,
+    setScienceLabImageLoaded,
+    setShowScienceLabRoom,
+    setGameStarted,
+    setStartedAtIso,
+    setTimerVisible: timer.setTimerVisible,
+    setLoreNarrationActive: narration.setLoreNarrationActive,
+    setShowNarrationButton: narration.setShowNarrationButton,
+    stopTimerAndSetGameOver: timer.stopTimerAndSetGameOver,
+    startTimerFromServerTime: timer.startTimerFromServerTime,
+    narrationInProgressRef: narration.narrationInProgressRef,
+  })
 
-  const applyStartedState = useCallback((startedAt: string) => {
-    setGameStarted(true)
-    setStartedAtIso(startedAt)
-    startTimerFromServerTime(startedAt)
-    if (!gameId) {
-      setLoreNarrationActive(true)
-      setShowNarrationButton(true)
-      return
-    }
-    if (hasLoreAck(gameId, startedAt)) {
-      setLoreNarrationActive(false)
-      setShowNarrationButton(false)
-      setTimerVisible(true)
-      return
-    }
-    setLoreNarrationActive(true)
-    setShowNarrationButton(true)
-    setTimerVisible(false)
-  }, [gameId, startTimerFromServerTime])
-
-  const speakWithBrowserTTS = useCallback((text: string, onEnd?: () => void) => {
-    if (!text.trim()) {
-      onEnd?.()
-      return
-    }
-    if (!window.speechSynthesis) {
-      onEnd?.()
-      return
-    }
-    const u = new SpeechSynthesisUtterance(text)
-    u.lang = 'he-IL'
-    u.rate = 0.95
-    if (onEnd) u.onend = () => { onEnd() }
-    u.onerror = () => { onEnd?.() }
-    window.speechSynthesis.speak(u)
-  }, [])
-
-  const playLoreAudio = useCallback(
-    (gid: string, loreTextForFallback?: string, onNarrationEnd?: () => void, audioContext?: AudioContext | null, audioElementForFallback?: HTMLAudioElement | null) => {
-      if (lorePlayedRef.current) {
-        onNarrationEnd?.()
-        return
-      }
-      lorePlayedRef.current = true
-      const tryFallback = () => {
-        if (loreTextForFallback?.trim()) {
-          speakWithBrowserTTS(loreTextForFallback, onNarrationEnd)
-        } else {
-          onNarrationEnd?.()
-        }
-        lorePlayedRef.current = false
-      }
-      const playWithAudioElement = (blob: Blob, audioEl: HTMLAudioElement) => {
-        const objectUrl = URL.createObjectURL(blob)
-        const cleanup = () => URL.revokeObjectURL(objectUrl)
-        const onEnded = () => {
-          cleanup()
-          onNarrationEnd?.()
-        }
-        const onPlayFailed = (_err?: unknown) => {
-          cleanup()
-          tryFallback()
-        }
-        const onError = () => onPlayFailed(null)
-        if (audioEl.src && audioEl.src.startsWith('blob:')) URL.revokeObjectURL(audioEl.src)
-        audioEl.src = objectUrl
-        audioEl.load()
-        audioEl.removeEventListener('ended', onEnded)
-        audioEl.removeEventListener('error', onError)
-        audioEl.addEventListener('ended', onEnded)
-        audioEl.addEventListener('error', onError)
-        audioEl.play()
-          .then(() => undefined)
-          .catch(onPlayFailed)
-      }
-      fetchLoreAudio(gid)
-        .then((r) => r.ok ? r.blob() : null)
-        .then(async (blob) => {
-          if (!blob) {
-            tryFallback()
-            return
-          }
-          if (audioContext && audioContext.state !== 'closed') {
-            try {
-              const arrayBuffer = await blob.arrayBuffer()
-              const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
-              const source = audioContext.createBufferSource()
-              source.buffer = audioBuffer
-              source.connect(audioContext.destination)
-              source.onended = () => {
-                onNarrationEnd?.()
-              }
-              source.start(0)
-              return
-            } catch {
-              // fallback below
-            }
-          }
-          if (audioElementForFallback) {
-            playWithAudioElement(blob, audioElementForFallback)
-          } else {
-            tryFallback()
-          }
-        })
-        .catch(() => {
-          tryFallback()
-        })
-    },
-    [speakWithBrowserTTS]
-  )
-
-  const handleNarrationClick = useCallback(async () => {
-    setShowNarrationButton(false)
-    setLoreNarrationActive(true)
-
-    const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
-    const unlockedAudioEl = new Audio(SILENT_WAV)
-    unlockedAudioEl.play().catch(() => {})
-
-    const situationText = room?.room_lore || room?.room_description || ''
-
-    const onNarrationEnd = () => {
-      if (gameId && startedAtIso) persistLoreAck(gameId, startedAtIso)
-      setLoreNarrationActive(false)
-      setTimerVisible(true)
-    }
-
-    if (!situationText) {
-      onNarrationEnd()
-      return
-    }
-
-    if (!gameId) {
-      onNarrationEnd()
-      return
-    }
-
-    const AudioContextClass = typeof window !== 'undefined' && (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
-    if (AudioContextClass) {
-      try {
-        const ctx = new AudioContextClass()
-        await ctx.resume()
-        playLoreAudio(gameId, situationText, onNarrationEnd, ctx, unlockedAudioEl)
-      } catch {
-        playLoreAudio(gameId, situationText, onNarrationEnd, null, unlockedAudioEl)
-      }
-    } else {
-      playLoreAudio(gameId, situationText, onNarrationEnd, null, unlockedAudioEl)
-    }
-  }, [gameId, startedAtIso, room?.room_lore, room?.room_description, playLoreAudio])
-
-  const waitForStart = useCallback(() => {
-    const pollInterval = setInterval(async () => {
-      if (!gameId) return
-      try {
-        const data = await getGameState(gameId)
-        if (data.started_at) {
-          clearInterval(pollInterval)
-          setRoom(data)
-          setSolvedItemIds(data.solved_item_ids ?? [])
-          if (data.door_opened) {
-            setDoorVideoPlaying(false)
-            setScienceLabImageLoaded(false)
-            setShowScienceLabRoom(true)
-          }
-          applyStartedState(data.started_at)
-        }
-      } catch {
-        // ignore
-      }
-    }, 3000)
-    return () => clearInterval(pollInterval)
-  }, [gameId, applyStartedState])
-
-  const syncGameStateFromServer = useCallback(async () => {
-    if (!gameId) return
-    const data = await getGameState(gameId)
-    setRoom(data)
-    setSolvedItemIds(data.solved_item_ids ?? [])
-    if (data.door_opened) {
-      setDoorVideoPlaying(false)
-      setScienceLabImageLoaded(false)
-      setShowScienceLabRoom(true)
-    }
-    if (data.started_at) {
-      applyStartedState(data.started_at)
-    }
-    if (data.game_over) {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current)
-        timerIntervalRef.current = null
-      }
-      setGameOver(true)
-    }
-  }, [gameId, applyStartedState])
+  useGameSSE({
+    gameId,
+    applyStartedState: sync.applyStartedState,
+    syncGameStateFromServer: sync.syncGameStateFromServer,
+    stopTimerAndSetGameOver: timer.stopTimerAndSetGameOver,
+    setSolvedItemIds,
+    setDoorVideoPlaying,
+    setPuzzleSolvedNotification,
+  })
 
   useEffect(() => {
     if (!gameId) {
@@ -392,10 +115,7 @@ export default function GamePage() {
       showStatus(MESSAGES.START_IN_GROUP, false)
       return
     }
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current)
-      timerIntervalRef.current = null
-    }
+    timer.clearTimer()
     pollCleanupRef.current?.()
     pollCleanupRef.current = null
     setRoomLoading(true)
@@ -403,25 +123,15 @@ export default function GamePage() {
     setSolvedItemIds([])
     setGameStarted(false)
     setStartedAtIso(null)
-    setTimerVisible(false)
-    setLoreNarrationActive(false)
-    setShowNarrationButton(false)
-    lorePlayedRef.current = false
+    timer.setTimerVisible(false)
+    narration.resetForNewGame()
     getGameState(gameId)
       .then((data) => {
         setRoomLoading(false)
         showStatus('', false)
-        setRoom(data)
-        setSolvedItemIds(data.solved_item_ids ?? [])
-        if (data.door_opened) {
-          setDoorVideoPlaying(false)
-          setScienceLabImageLoaded(false)
-          setShowScienceLabRoom(true)
-        }
-        if (data.started_at) {
-          applyStartedState(data.started_at)
-        } else {
-          pollCleanupRef.current = waitForStart()
+        sync.applyGameStateFromServer(data)
+        if (!data.started_at) {
+          pollCleanupRef.current = sync.waitForStart()
         }
       })
       .catch((e: ApiError) => {
@@ -434,7 +144,8 @@ export default function GamePage() {
       pollCleanupRef.current?.()
       pollCleanupRef.current = null
     }
-  }, [gameId, showStatus, applyStartedState, waitForStart])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when gameId changes
+  }, [gameId])
 
   const hasRoomImage = !!(room?.room_image_url && (room?.room_items?.length ?? 0) > 0)
   useEffect(() => {
@@ -442,101 +153,8 @@ export default function GamePage() {
     return () => document.body.classList.remove('game-has-room')
   }, [roomLoading, hasRoomImage])
 
-  useEffect(() => {
-    timeUpSentRef.current = false
-  }, [gameId])
-
-  const puzzleSolvedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    if (!gameId) return
-    const url = getGameSSEUrl(gameId)
-    const es = new EventSource(url)
-    const stopRecoveryPolling = () => {
-      if (!sseRecoveryPollRef.current) return
-      clearInterval(sseRecoveryPollRef.current)
-      sseRecoveryPollRef.current = null
-    }
-    const startRecoveryPolling = () => {
-      if (sseRecoveryPollRef.current) return
-      sseRecoveryPollRef.current = setInterval(() => {
-        syncGameStateFromServer().catch(() => {})
-      }, 3000)
-    }
-
-    es.onopen = () => {
-      stopRecoveryPolling()
-      syncGameStateFromServer().catch(() => {})
-    }
-
-    es.onmessage = (ev) => {
-      try {
-        const data = JSON.parse(ev.data) as {
-          event?: string
-          type?: string
-          started_at?: string
-          reason?: string
-          item_id?: string
-          item_label?: string
-          answer?: string
-          solver_name?: string
-        }
-        if (data.type === 'game_started' && data.started_at) {
-          applyStartedState(data.started_at)
-          return
-        }
-        if (data.type === 'game_over' || data.event === 'game_over') {
-          if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current)
-            timerIntervalRef.current = null
-          }
-          setGameOver(true)
-          return
-        }
-        if (data.event === 'door_opened') {
-          setDoorVideoPlaying(true)
-          return
-        }
-        if (data.event !== 'puzzle_solved') return
-        const payload = data as PuzzleSolvedEvent
-        setSolvedItemIds((prev) => (prev.includes(payload.item_id) ? prev : [...prev, payload.item_id]))
-        const text =
-          payload.item_id === 'clock_1'
-            ? 'השעון כוון בהצלחה'
-            : payload.item_id === 'board_servers'
-              ? 'לוח הבקרה נפתח בהצלחה'
-              : payload.item_id === 'safe_1'
-                ? 'הכספת נפתחה בהצלחה בתוכה יש מפתח'
-                : `חידת ${payload.item_label} נפתרה הפתרון הוא ${payload.answer}`
-        if (puzzleSolvedTimeoutRef.current) clearTimeout(puzzleSolvedTimeoutRef.current)
-        setPuzzleSolvedNotification(text)
-        puzzleSolvedTimeoutRef.current = setTimeout(() => setPuzzleSolvedNotification(null), 8000)
-      } catch {
-        // ignore non-JSON or unknown shape
-      }
-    }
-
-    es.onerror = (ev) => {
-      void ev
-      startRecoveryPolling()
-    }
-
-    return () => {
-      stopRecoveryPolling()
-      es.close()
-      if (puzzleSolvedTimeoutRef.current) {
-        clearTimeout(puzzleSolvedTimeoutRef.current)
-        puzzleSolvedTimeoutRef.current = null
-      }
-    }
-  }, [gameId, applyStartedState, syncGameStateFromServer])
-
-  const onRoomImageLoad = useCallback(() => {
-    setRoomImageLoaded(true)
-  }, [])
-
-  const onRoomImageError = useCallback(() => {
-    setRoomImageLoaded(true)
-  }, [])
+  const onRoomImageLoad = useCallback(() => setRoomImageLoaded(true), [])
+  const onRoomImageError = useCallback(() => setRoomImageLoaded(true), [])
 
   useCenterScrollOnLoad(panoramaRef, hasRoomImage && roomImageLoaded, [
     room?.room_image_url,
@@ -559,10 +177,8 @@ export default function GamePage() {
   }, [])
 
   const closeModalState = useCallback(() => {
-    const synth = window.speechSynthesis
-    if (synth && document.hasFocus?.() && (synth.speaking || synth.pending)) {
-      synth.cancel()
-    }
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
+    if (synth && document.hasFocus?.() && (synth.speaking || synth.pending)) synth.cancel()
     modalTTSRef.current = null
     setTaskModalOpen(false)
     setSelectedItem(null)
@@ -571,58 +187,36 @@ export default function GamePage() {
   }, [])
 
   const closeTaskModal = useCallback((e?: React.MouseEvent | React.PointerEvent) => {
-    e?.preventDefault()
-    e?.stopPropagation()
+    e?.preventDefault?.()
+    e?.stopPropagation?.()
     closeModalState()
   }, [closeModalState])
 
   const handleCloseModal = useCallback(() => {
-    const synth = window.speechSynthesis
-    if (synth && document.hasFocus?.() && (synth.speaking || synth.pending)) {
-      synth.cancel()
-    }
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
+    if (synth && document.hasFocus?.() && (synth.speaking || synth.pending)) synth.cancel()
     closeModalState()
   }, [closeModalState])
   closeModalRef.current = handleCloseModal
 
-  /** Telegram BackButton: when modal is open, show header back button; on press, close modal.
-   * Skip on clients where BackButton is not supported (e.g. WebApp version 6.0), to avoid
-   * overlay/conflict with the in-modal "סגור" button. */
   useEffect(() => {
     const backBtn = window.Telegram?.WebApp?.BackButton
     const version = window.Telegram?.WebApp?.version ?? ''
-    const backButtonUnsupported = version.startsWith('6.0')
-    if (!backBtn || backButtonUnsupported) return
+    if (!backBtn || version.startsWith('6.0')) return
     if (!taskModalOpen) {
-      try {
-        backBtn.hide()
-      } catch {
-        // BackButton not supported on this client
-      }
+      try { backBtn.hide() } catch { /* unsupported */ }
       return
     }
     const onBack = () => {
       closeModalRef.current?.()
-      try {
-        backBtn.hide()
-        backBtn.offClick(onBack)
-      } catch {
-        // ignore
-      }
+      try { backBtn.hide(); backBtn.offClick(onBack) } catch { /* ignore */ }
     }
     try {
       backBtn.onClick(onBack)
       backBtn.show()
-    } catch {
-      return
-    }
+    } catch { return }
     return () => {
-      try {
-        backBtn.hide()
-        backBtn.offClick(onBack)
-      } catch {
-        // ignore
-      }
+      try { backBtn.hide(); backBtn.offClick(onBack) } catch { /* ignore */ }
     }
   }, [taskModalOpen])
 
@@ -639,18 +233,13 @@ export default function GamePage() {
       ...(solverName ? { solver_name: solverName } : {}),
     })
       .then((res) => {
-        const successText =
-          selectedItem?.id === 'board_servers'
-            ? 'לוח הבקרה נפתח!'
-            : selectedItem?.id === 'safe_1'
-              ? 'הכספת נפתחה!'
-              : res.message ?? 'נפתר בהצלחה!'
+        const successText = getPuzzleSuccessMessage(selectedItem?.id ?? '')
         setActionMessage({
           text: res.message ?? (res.correct ? successText : 'סיסמה שגויה.'),
           isSuccess: !!res.correct,
         })
         if (res.correct) {
-          if (selectedItem) setSolvedItemIds((prev) => (prev.includes(selectedItem.id) ? prev : [...prev, selectedItem.id]))
+          setSolvedItemIds((prev) => (prev.includes(selectedItem.id) ? prev : [...prev, selectedItem.id]))
           setTimeout(closeTaskModal, 2000)
         }
       })
@@ -675,7 +264,7 @@ export default function GamePage() {
       solvedItemIds: string[]
     }) => {
       const { item, shapeItemId, allPuzzlesSolved: allSolved, solvedItemIds: solved } = params
-      if (!gameStarted || loreNarrationActive) return
+      if (!gameStarted || narration.loreNarrationActive) return
       if (shapeItemId === 'door') {
         if (!allSolved) {
           setDoorLockedMessage(true)
@@ -691,24 +280,21 @@ export default function GamePage() {
         ? !deps.every((id) => solved.includes(id))
         : shapeItemId === 'board_servers' && !solved.includes('clock_1')
       if (depsNotMet) {
-        setBlockedItemMessage(
-          shapeItemId === 'board_servers' ? 'כוונו את השעון כדי לפתוח את לוח הבקרה.' : 'יש לפתור קודם חידות אחרות בחדר.'
-        )
+        setBlockedItemMessage(getBlockedItemMessage(shapeItemId))
         setTimeout(() => setBlockedItemMessage(null), 4000)
         return
       }
       openTask(item)
     },
-    [gameStarted, loreNarrationActive, gameId, room?.puzzle_dependencies, openTask]
+    [gameStarted, narration.loreNarrationActive, gameId, room?.puzzle_dependencies, openTask]
   )
 
   const handleDoorVideoEnded = useCallback(() => {
-    const transitionAfterEnd = () => {
+    setTimeout(() => {
       setDoorVideoPlaying(false)
       setScienceLabImageLoaded(false)
       setShowScienceLabRoom(true)
-    }
-    setTimeout(transitionAfterEnd, 450)
+    }, 450)
   }, [])
 
   const handleDoorVideoError = useCallback(() => {
@@ -730,9 +316,9 @@ export default function GamePage() {
         </div>
       )}
       <Banners
-        showTimer={timerVisible}
-        gameOver={gameOver}
-        secondsLeft={secondsLeft}
+        showTimer={timer.timerVisible}
+        gameOver={timer.gameOver}
+        secondsLeft={timer.secondsLeft}
         puzzleSolvedNotification={puzzleSolvedNotification}
         doorLockedMessage={doorLockedMessage}
         blockedItemMessage={blockedItemMessage}
@@ -744,8 +330,8 @@ export default function GamePage() {
           <p>⏳ ממתין שהמשחק יתחיל...</p>
         </div>
       )}
-      {showNarrationButton && gameStarted && (
-        <button type="button" className="narration-button" onClick={handleNarrationClick}>
+      {narration.showNarrationButton && gameStarted && (
+        <button type="button" className="narration-button" onClick={narration.handleNarrationClick}>
           🔊 התחל והאזן לסיפור
         </button>
       )}

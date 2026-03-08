@@ -1,3 +1,4 @@
+import { PUZZLE_SOLVED_TOAST_TITLE } from '../constants/puzzleMessages'
 import { formatTimer } from '../constants/roomHotspots'
 
 type BannersProps = {
@@ -37,7 +38,7 @@ export function Banners({
       )}
       {puzzleSolvedNotification && (
         <div className="sse-toast" role="alert" aria-live="assertive">
-          <div className="sse-toast-title">חידה נפתרה</div>
+          <div className="sse-toast-title">{PUZZLE_SOLVED_TOAST_TITLE}</div>
           <div className="sse-toast-text">{puzzleSolvedNotification}</div>
         </div>
       )}

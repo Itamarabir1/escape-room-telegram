@@ -36,7 +36,6 @@ class Config:
     API_BASE_URL = _str_env("API_BASE_URL")
     WEBAPP_URL = _str_env("WEBAPP_URL")
     FRONTEND_ORIGIN_FALLBACK = _str_env("FRONTEND_ORIGIN_FALLBACK") or "http://localhost:5173"
-    VITE_API_URL = _str_env("VITE_API_URL")
 
     # --- App ---
     PORT = int(os.getenv("PORT", "8000"))
